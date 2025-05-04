@@ -55,6 +55,8 @@ dependencies {
     implementation("com.google.firebase:firebase-database")
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-database:21.0.0")
+
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
 
 apply(plugin = "com.google.gms.google-services") // 🔥 Important!

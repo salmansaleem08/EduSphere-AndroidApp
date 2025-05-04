@@ -45,7 +45,7 @@ class MainActivity : AppCompatActivity() {
                 Intent(this, SignUp::class.java)
             } else {
                 // Logged-in user with prior installation - go to Home
-                //Intent(this, Home::class.java)
+                Intent(this, SignUp::class.java)
             }
 
             startActivity(intent)
