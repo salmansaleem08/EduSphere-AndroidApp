@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:background="#FFFFFF"
+    android:paddingStart="20dp"
+    android:paddingEnd="20dp"
+    android:paddingTop="40dp"
+    android:paddingBottom="40dp"
+    tools:context=".SignUp"
+    android:fitsSystemWindows="true">
+
+    <!-- Logo -->
+    <ImageView
+        android:id="@+id/iv_logo"
+        android:layout_width="150dp"
+        android:layout_height="200dp"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="10dp"
+        android:src="@drawable/edu_logo"
+        android:scaleType="centerInside"
+        android:adjustViewBounds="true" />
+
+    <!-- Get Started Text -->
+    <TextView
+        android:id="@+id/tv_get_started"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/iv_logo"
+        android:layout_centerHorizontal="true"
+        android:text="Get Started"
+        android:textColor="#333333"
+        android:textSize="28sp"
+        android:textStyle="bold" />
+
+    <!-- Subtitle Text -->
+    <TextView
+        android:id="@+id/tv_subtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tv_get_started"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="4dp"
+        android:text="by creating a free account"
+        android:textColor="#666666"
+        android:textSize="16sp" />
+
+    <!-- Full Name Field -->
+    <EditText
+        android:id="@+id/et_full_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tv_subtitle"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/rounded_edit_text_bg"
+        android:drawableEnd="@drawable/ic_person"
+        android:hint="Full Name"
+        android:inputType="textPersonName"
+        android:padding="15dp"
+        android:textColorHint="#888888" />
+
+    <!-- Email Field -->
+    <EditText
+        android:id="@+id/et_email"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/et_full_name"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/rounded_edit_text_bg"
+        android:drawableEnd="@drawable/mail"
+        android:hint="Enter Email"
+        android:inputType="textEmailAddress"
+        android:padding="15dp"
+        android:textColorHint="#888888" />
+
+    <!-- Phone Field -->
+    <EditText
+        android:id="@+id/et_phone"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/et_email"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/rounded_edit_text_bg"
+        android:drawableEnd="@drawable/ic_phone"
+        android:hint="Enter Phone"
+        android:inputType="phone"
+        android:padding="15dp"
+        android:textColorHint="#888888" />
+
+    <!-- Password Field -->
+    <EditText
+        android:id="@+id/et_password"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/et_phone"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/rounded_edit_text_bg"
+        android:drawableEnd="@drawable/hide"
+        android:hint="Enter Password"
+        android:inputType="textPassword"
+        android:padding="15dp"
+        android:textColorHint="#888888" />
+
+    <!-- Terms Checkbox -->
+    <CheckBox
+        android:id="@+id/cb_terms"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/et_password"
+        android:layout_alignParentStart="true"
+        android:layout_marginTop="10dp"
+        android:text="By checking the box you agree to our terms and conditions"
+        android:textColor="#666666"
+        android:textSize="14sp" />
+
+    <!-- Sign Up Button -->
+    <Button
+        android:id="@+id/btn_sign_up"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/cb_terms"
+        android:layout_marginTop="5dp"
+        android:background="@drawable/rounded_button_bg"
+        android:backgroundTint="#1E1F22"
+        android:padding="15dp"
+        android:text="SIGN UP"
+        android:textAllCaps="true"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp" />
+
+    <!-- Login Link Container -->
+    <RelativeLayout
+        android:id="@+id/layout_login_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/btn_sign_up"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="16dp">
+
+        <!-- Already a member text -->
+        <TextView
+            android:id="@+id/tv_already_member"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Already a member "
+            android:textColor="#333333"
+            android:textSize="14sp" />
+
+        <!-- Login link -->
+        <TextView
+            android:id="@+id/tv_login"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_toEndOf="@id/tv_already_member"
+            android:text="Login?"
+            android:textColor="#F5A623"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </RelativeLayout>
+
+</RelativeLayout>

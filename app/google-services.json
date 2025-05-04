@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "490308296857",
+    "firebase_url": "https://edusphere-e2107-default-rtdb.firebaseio.com",
+    "project_id": "edusphere-e2107",
+    "storage_bucket": "edusphere-e2107.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:490308296857:android:e28f34810f8115863cd808",
+        "android_client_info": {
+          "package_name": "com.salmansaleem.edusphere"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBMaalWgMrDfeJxEoQIf_PMXOihDtLFULk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
