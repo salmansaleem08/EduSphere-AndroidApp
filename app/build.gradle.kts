@@ -57,6 +57,7 @@ dependencies {
     implementation("com.google.firebase:firebase-database:21.0.0")
 
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation ("de.hdodenhof:circleimageview:3.1.0")
 }
 
 apply(plugin = "com.google.gms.google-services") // 🔥 Important!

@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:background="#FFFFFF"
+    android:paddingStart="20dp"
+    android:paddingEnd="20dp"
+    android:paddingTop="40dp"
+    android:paddingBottom="40dp"
+    android:fitsSystemWindows="true"
+    android:id="@+id/main"
+    tools:context=".Home">
+
+    <!-- Header Section -->
+    <RelativeLayout
+        android:id="@+id/header_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!-- Menu Icon -->
+        <ImageView
+            android:id="@+id/menu"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:src="@drawable/ic_menu" />
+
+        <!-- EDU SPHERE Title -->
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:layout_centerVertical="true"
+            android:text="EDU SPHERE"
+            android:textColor="#333333"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <!-- Notification Icon -->
+        <ImageView
+            android:id="@+id/notification"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:contentDescription="Notifications"
+            android:src="@drawable/ic_notification" />
+    </RelativeLayout>
+
+    <!-- User Greeting Section -->
+    <RelativeLayout
+        android:id="@+id/greeting_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/header_layout"
+        android:layout_marginTop="16dp">
+
+        <!-- User Profile Image -->
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/iv_user_profile"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:contentDescription="User Profile"
+            android:src="@drawable/user_profile_placeholder" />
+
+        <!-- Greeting Text -->
+        <TextView
+            android:id="@+id/tv_greeting"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_toEndOf="@id/iv_user_profile"
+            android:layout_marginStart="16dp"
+            android:text="Hi, Jasmine\nWelcome back"
+            android:textColor="#333333"
+            android:textSize="18sp" />
+
+        <!-- Settings Icon -->
+        <ImageView
+            android:id="@+id/iv_settings"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:contentDescription="Settings"
+            android:src="@drawable/ic_setting" />
+    </RelativeLayout>
+
+    <!-- My Classes Section -->
+    <TextView
+        android:id="@+id/tv_my_classes"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/greeting_layout"
+        android:layout_marginTop="24dp"
+        android:text="My Classes"
+        android:textColor="#666666"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <!-- Horizontal RecyclerView for My Classes -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_my_classes"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tv_my_classes"
+        android:layout_marginTop="16dp"
+        android:orientation="horizontal"
+        android:scrollbars="horizontal" />
+
+    <!-- Plus Button for Adding a Class -->
+    <ImageButton
+        android:id="@+id/btn_add_class"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_alignParentEnd="true"
+        android:layout_alignBottom="@id/rv_my_classes"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/rounded_circle_bg"
+        android:contentDescription="Add Class"
+        android:src="@android:drawable/ic_input_add"
+        app:tint="#FFFFFF" />
+
+    <!-- Tasks Section -->
+    <TextView
+        android:id="@+id/tv_tasks"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/rv_my_classes"
+        android:layout_marginTop="24dp"
+        android:text="Tasks"
+        android:textColor="#666666"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <!-- Tabs for Tasks -->
+    <LinearLayout
+        android:id="@+id/tasks_tabs"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tv_tasks"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
+            android:text="Recently"
+            android:textColor="#333333"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
+            android:text="Today"
+            android:textColor="#666666"
+            android:textSize="16sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
+            android:text="Upcoming"
+            android:textColor="#666666"
+            android:textSize="16sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Missing"
+            android:textColor="#666666"
+            android:textSize="16sp" />
+    </LinearLayout>
+
+    <!-- Vertical RecyclerView for Tasks -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_tasks"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tasks_tabs"
+        android:layout_marginTop="16dp"
+        android:orientation="vertical"
+        android:scrollbars="vertical" />
+
+</RelativeLayout>
+
+    <!-- You'll need to create these resources: -->
+    <!--
+    1. user_profile_placeholder.xml or user_profile_placeholder.png: Placeholder image for user profile
+    2. Item layout for My Classes RecyclerView (e.g., item_class.xml):
+    <?xml version="1.0" encoding="utf-8"?>
+    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="8dp"
+        android:background="@drawable/rounded_card_bg">
+        <ImageView
+            android:layout_width="120dp"
+            android:layout_height="80dp"
+            android:src="@drawable/class_placeholder"
+            android:scaleType="centerCrop" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Class Title"
+            android:textColor="#333333"
+            android:textSize="16sp" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Instructor Name"
+            android:textColor="#666666"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    3. Item layout for Tasks RecyclerView (e.g., item_task.xml):
+    <?xml version="1.0" encoding="utf-8"?>
+    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="8dp">
+        <ImageView
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@android:drawable/ic_menu_edit"
+            android:contentDescription="Task Icon" />
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="16dp"
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Task Title"
+                android:textColor="#333333"
+                android:textSize="16sp" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Due Date"
+                android:textColor="#666666"
+                android:textSize="14sp" />
+        </LinearLayout>
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@android:drawable/ic_menu_more"
+            android:contentDescription="More Options" />
+    </LinearLayout>
+
+    4. rounded_card_bg.xml:
+    <?xml version="1.0" encoding="utf-8"?>
+    <shape xmlns:android="http://schemas.android.com/apk/res/android">
+        <solid android:color="#F0F4F8" />
+        <corners android:radius="8dp" />
+    </shape>
+    -->

@@ -74,10 +74,10 @@ class SignUp : AppCompatActivity() {
 
 
 
-//        loginText.setOnClickListener {
-//            val intent = Intent(this, Login::class.java)
-//            startActivity(intent)
-//        }
+        loginText.setOnClickListener {
+            val intent = Intent(this, Login::class.java)
+            startActivity(intent)
+        }
     }
 
     private fun validateInputs(name: String, email: String, phone: String, password: String, termsAccepted: Boolean): Boolean {
@@ -145,7 +145,7 @@ class SignUp : AppCompatActivity() {
                                     if (dbTask.isSuccessful) {
                                         sendTokenToBackend(idToken, userData)
                                         Toast.makeText(this, "Registration successful!", Toast.LENGTH_SHORT).show()
-                                        //startActivity(Intent(this, MyProfile::class.java))
+                                        startActivity(Intent(this, Login::class.java))
                                         finish()
                                     } else {
                                         Toast.makeText(this, "Database error: ${dbTask.exception?.message}", Toast.LENGTH_SHORT).show()
