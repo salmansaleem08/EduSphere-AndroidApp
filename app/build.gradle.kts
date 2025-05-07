@@ -58,6 +58,18 @@ dependencies {
 
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation ("de.hdodenhof:circleimageview:3.1.0")
+    implementation ("androidx.work:work-runtime-ktx:2.8.1")
+
+
+    implementation(libs.volley)
+    implementation ("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation ("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation ("com.squareup.okhttp3:logging-interceptor:4.9.3")
+    implementation ("com.squareup.okhttp3:okhttp:4.9.3")
+    implementation(libs.androidx.exifinterface)
+
+    implementation ("com.squareup.picasso:picasso:2.71828")
+
 }
 
 apply(plugin = "com.google.gms.google-services") // 🔥 Important!

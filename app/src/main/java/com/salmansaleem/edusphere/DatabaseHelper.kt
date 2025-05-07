@@ -9,31 +9,63 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
     companion object {
         private const val DATABASE_NAME = "EduSphere.db"
-        private const val DATABASE_VERSION = 1
+        private const val DATABASE_VERSION = 2 // Updated version
         private const val TABLE_USERS = "users"
-        private const val COLUMN_ID = "id"
-        private const val COLUMN_NAME = "name"
+        const val TABLE_PROFILE_UPDATES = "profile_updates"
+
+        const val COLUMN_ID = "id"
+        const val COLUMN_NAME = "name"
         private const val COLUMN_EMAIL = "email"
-        private const val COLUMN_PHONE = "phone"
+        const val COLUMN_PHONE = "phone"
         private const val COLUMN_PASSWORD = "password"
+
+        const val COLUMN_UID = "uid"
+        const val COLUMN_BIO = "bio"
+
+
+        const val COLUMN_PROFILE_IMAGE_PATH = "profile_image_path"
     }
 
     override fun onCreate(db: SQLiteDatabase) {
         val createTable = """
             CREATE TABLE $TABLE_USERS (
-                $COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT,
-                $COLUMN_NAME TEXT NOT NULL,
-                $COLUMN_EMAIL TEXT NOT NULL UNIQUE,
-                $COLUMN_PHONE TEXT NOT NULL,
-                $COLUMN_PASSWORD TEXT NOT NULL
+                $COLUMN_UID TEXT PRIMARY KEY,
+                $COLUMN_NAME TEXT,
+                $COLUMN_EMAIL TEXT,
+                $COLUMN_PHONE TEXT,
+                $COLUMN_PASSWORD TEXT,
+                $COLUMN_BIO TEXT
             )
         """.trimIndent()
         db.execSQL(createTable)
+
+        val createProfileUpdatesTable = """
+            CREATE TABLE $TABLE_PROFILE_UPDATES (
+                $COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                $COLUMN_UID TEXT,
+                $COLUMN_NAME TEXT,
+                $COLUMN_BIO TEXT,
+                $COLUMN_PHONE TEXT,
+                $COLUMN_PROFILE_IMAGE_PATH TEXT
+            )
+        """.trimIndent()
+        db.execSQL(createProfileUpdatesTable)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_USERS")
-        onCreate(db)
+        if (oldVersion < 2) {
+            db.execSQL("ALTER TABLE $TABLE_USERS ADD COLUMN $COLUMN_BIO TEXT")
+            db.execSQL("""
+                CREATE TABLE $TABLE_PROFILE_UPDATES (
+                    $COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                    $COLUMN_UID TEXT,
+                    $COLUMN_NAME TEXT,
+                    $COLUMN_BIO TEXT,
+                    $COLUMN_PHONE TEXT,
+                    $COLUMN_PROFILE_IMAGE_PATH TEXT
+                )
+            """.trimIndent())
+        }
     }
 
     fun insertUser(name: String, email: String, phone: String, password: String): Boolean {
@@ -131,4 +163,66 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         db.close()
         return users
     }
+
+
+    fun updateUserProfile(uid: String, name: String, bio: String, phone: String): Boolean {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put(COLUMN_NAME, name)
+            put(COLUMN_BIO, bio)
+            put(COLUMN_PHONE, phone)
+        }
+
+        val rowsAffected = db.update(
+            TABLE_USERS,
+            values,
+            "$COLUMN_UID = ?",
+            arrayOf(uid)
+        )
+
+        return if (rowsAffected > 0) {
+            true
+        } else {
+            values.put(COLUMN_UID, uid)
+            db.insert(TABLE_USERS, null, values) > 0
+        }
+    }
+
+    fun getUserProfile(uid: String): Map<String, String>? {
+        val db = readableDatabase
+        val cursor = db.query(
+            TABLE_USERS,
+            arrayOf(COLUMN_NAME, COLUMN_BIO, COLUMN_PHONE),
+            "$COLUMN_UID = ?",
+            arrayOf(uid),
+            null, null, null
+        )
+
+        return if (cursor.moveToFirst()) {
+            val map = mutableMapOf<String, String>()
+            map["name"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NAME)) ?: ""
+            map["bio"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_BIO)) ?: ""
+            map["phone"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PHONE)) ?: ""
+            cursor.close()
+            map
+        } else {
+            cursor.close()
+            null
+        }
+    }
+
+    fun queueProfileUpdate(uid: String, name: String, bio: String, phone: String, profileImagePath: String?) {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put(COLUMN_UID, uid)
+            put(COLUMN_NAME, name)
+            put(COLUMN_BIO, bio)
+            put(COLUMN_PHONE, phone)
+            if (profileImagePath != null) {
+                put(COLUMN_PROFILE_IMAGE_PATH, profileImagePath)
+            }
+        }
+        db.insert(TABLE_PROFILE_UPDATES, null, values)
+    }
+
 }
