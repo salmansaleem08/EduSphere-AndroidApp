@@ -24,3 +24,10 @@ data class Comment(
     val text: String,
     val timestamp: String
 )
+
+data class Person(
+    val uid: String,
+    val name: String,
+    val profileImagePath: String?,
+    val isTeacher: Boolean
+)

@@ -102,6 +102,17 @@ class ClassPage : AppCompatActivity() {
         announcementRecyclerView.layoutManager = LinearLayoutManager(this)
         announcementRecyclerView.adapter = announcementAdapter
 
+
+        // Navigate to ClassFellows
+        val classFellowsButton = findViewById<ImageView>(R.id.iv_group) // Assumed ID, update as needed
+        classFellowsButton.setOnClickListener {
+            val intent = Intent(this, ClassFellows::class.java).apply {
+                putExtra("classroom_id", classroomId)
+                putExtra("classroom_name", titleTextView.text.toString())
+            }
+            startActivity(intent)
+        }
+
     }
 
     private fun isOnline(): Boolean {

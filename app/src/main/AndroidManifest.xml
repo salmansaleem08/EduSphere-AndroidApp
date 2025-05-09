@@ -24,6 +24,9 @@
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
         <activity
+            android:name=".ClassFellows"
+            android:exported="false" />
+        <activity
             android:name=".AnnouncementPage"
             android:exported="false" />
         <activity

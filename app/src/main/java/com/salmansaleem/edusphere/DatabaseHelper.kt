@@ -9,7 +9,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
     companion object {
         private const val DATABASE_NAME = "EduSphere.db"
-        private const val DATABASE_VERSION = 7 // Updated version for classroom support
+        private const val DATABASE_VERSION = 8 // Updated version for classroom support
         private const val TABLE_USERS = "users"
         const val TABLE_PROFILE_UPDATES = "profile_updates"
         private const val TABLE_CLASSROOMS = "classrooms"
@@ -281,6 +281,9 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 $COLUMN_TIMESTAMP TEXT
             )
         """.trimIndent())
+        }
+        if (oldVersion < 8) {
+            db.execSQL("ALTER TABLE $TABLE_USERS ADD COLUMN $COLUMN_PROFILE_IMAGE_PATH TEXT")
         }
     }
 
@@ -594,7 +597,27 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return rowsAffected > 0
     }
 
+    fun isClassMember(classroomId: String, memberUid: String): Boolean {
+        val db = readableDatabase
+        val cursor = db.query(
+            TABLE_CLASSES,
+            arrayOf(COLUMN_CLASSROOM_ID),
+            "$COLUMN_CLASSROOM_ID = ? AND $COLUMN_MEMBER_UID = ?",
+            arrayOf(classroomId, memberUid),
+            null, null, null
+        )
+        val exists = cursor.moveToFirst()
+        cursor.close()
+        db.close()
+        return exists
+    }
+
+
     fun addClassMember(classroomId: String, memberUid: String): Boolean {
+
+        if (isClassMember(classroomId, memberUid)) {
+            return true // Member already exists, no need to insert
+        }
         val db = writableDatabase
         val values = ContentValues().apply {
             put(COLUMN_CLASSROOM_ID, classroomId)
@@ -821,6 +844,48 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         cursor.close()
         db.close()
         return comments
+    }
+
+    fun getUsersByClassroom(classroomId: String): List<Map<String, String>> {
+        val users = mutableListOf<Map<String, String>>()
+        val db = readableDatabase
+        // Query members of the classroom
+        val memberCursor = db.query(
+            TABLE_CLASSES,
+            arrayOf(COLUMN_MEMBER_UID),
+            "$COLUMN_CLASSROOM_ID = ?",
+            arrayOf(classroomId),
+            null, null, null
+        )
+        val uids = mutableListOf<String>()
+        while (memberCursor.moveToNext()) {
+            val uid = memberCursor.getString(memberCursor.getColumnIndexOrThrow(COLUMN_MEMBER_UID)) ?: continue
+            uids.add(uid)
+        }
+        memberCursor.close()
+
+        // Query user profiles for each member
+        for (uid in uids) {
+            val userCursor = db.query(
+                TABLE_USERS,
+                arrayOf(COLUMN_UID, COLUMN_NAME, COLUMN_BIO, COLUMN_PHONE, COLUMN_PROFILE_IMAGE_PATH),
+                "$COLUMN_UID = ?",
+                arrayOf(uid),
+                null, null, null
+            )
+            if (userCursor.moveToFirst()) {
+                val map = mutableMapOf<String, String>()
+                map["uid"] = userCursor.getString(userCursor.getColumnIndexOrThrow(COLUMN_UID)) ?: ""
+                map["name"] = userCursor.getString(userCursor.getColumnIndexOrThrow(COLUMN_NAME)) ?: ""
+                map["bio"] = userCursor.getString(userCursor.getColumnIndexOrThrow(COLUMN_BIO)) ?: ""
+                map["phone"] = userCursor.getString(userCursor.getColumnIndexOrThrow(COLUMN_PHONE)) ?: ""
+                map["profile_image_path"] = userCursor.getString(userCursor.getColumnIndexOrThrow(COLUMN_PROFILE_IMAGE_PATH)) ?: ""
+                users.add(map)
+            }
+            userCursor.close()
+        }
+        db.close()
+        return users
     }
 }
 

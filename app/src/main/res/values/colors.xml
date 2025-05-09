@@ -4,5 +4,6 @@
     <color name="black">#1E1F22</color>
     <color name="dark_gray">#121212</color>
     <color name="orange">#F5A623</color>
+    <color name="light_gray">#888888</color>
 
 </resources>
