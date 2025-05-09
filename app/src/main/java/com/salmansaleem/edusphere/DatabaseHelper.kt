@@ -9,9 +9,13 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
     companion object {
         private const val DATABASE_NAME = "EduSphere.db"
-        private const val DATABASE_VERSION = 2 // Updated version
+        private const val DATABASE_VERSION = 5 // Updated version for classroom support
         private const val TABLE_USERS = "users"
         const val TABLE_PROFILE_UPDATES = "profile_updates"
+        private const val TABLE_CLASSROOMS = "classrooms"
+        const val TABLE_CLASSROOM_UPDATES = "classroom_updates"
+        private const val TABLE_CLASSES = "classes"
+
 
         const val COLUMN_ID = "id"
         const val COLUMN_NAME = "name"
@@ -24,6 +28,18 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
 
         const val COLUMN_PROFILE_IMAGE_PATH = "profile_image_path"
+
+
+        // Classroom columns
+        const val COLUMN_CLASSROOM_ID = "classroom_id"
+        const val COLUMN_SECTION = "section"
+        const val COLUMN_ROOM = "room"
+        const val COLUMN_SUBJECT = "subject"
+        const val COLUMN_CLASS_CODE = "class_code"
+        const val COLUMN_CLASSROOM_IMAGE_PATH = "classroom_image_path"
+        const val COLUMN_INSTRUCTOR_NAME = "instructor_name"
+
+        const val COLUMN_MEMBER_UID = "member_uid"
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -50,6 +66,48 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             )
         """.trimIndent()
         db.execSQL(createProfileUpdatesTable)
+
+        // New classrooms table
+        val createClassroomsTable = """
+            CREATE TABLE $TABLE_CLASSROOMS (
+                $COLUMN_CLASSROOM_ID TEXT,
+                $COLUMN_UID TEXT,
+                $COLUMN_NAME TEXT,
+                $COLUMN_SECTION TEXT,
+                $COLUMN_ROOM TEXT,
+                $COLUMN_SUBJECT TEXT,
+                $COLUMN_CLASS_CODE TEXT,
+                $COLUMN_CLASSROOM_IMAGE_PATH TEXT,
+                $COLUMN_INSTRUCTOR_NAME TEXT
+            )
+        """.trimIndent()
+        db.execSQL(createClassroomsTable)
+
+        // New classroom updates table
+        val createClassroomUpdatesTable = """
+            CREATE TABLE $TABLE_CLASSROOM_UPDATES (
+                $COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                $COLUMN_CLASSROOM_ID TEXT,
+                $COLUMN_UID TEXT,
+                $COLUMN_NAME TEXT,
+                $COLUMN_SECTION TEXT,
+                $COLUMN_ROOM TEXT,
+                $COLUMN_SUBJECT TEXT,
+                $COLUMN_CLASS_CODE TEXT,
+                $COLUMN_CLASSROOM_IMAGE_PATH TEXT,
+                $COLUMN_INSTRUCTOR_NAME TEXT
+            )
+        """.trimIndent()
+        db.execSQL(createClassroomUpdatesTable)
+
+        val createClassesTable = """
+        CREATE TABLE $TABLE_CLASSES (
+            $COLUMN_CLASSROOM_ID TEXT,
+            $COLUMN_MEMBER_UID TEXT,
+            PRIMARY KEY ($COLUMN_CLASSROOM_ID, $COLUMN_MEMBER_UID)
+        )
+    """.trimIndent()
+        db.execSQL(createClassesTable)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -65,6 +123,48 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                     $COLUMN_PROFILE_IMAGE_PATH TEXT
                 )
             """.trimIndent())
+        }
+        if (oldVersion < 3) {
+            db.execSQL("""
+                CREATE TABLE $TABLE_CLASSROOMS (
+                    $COLUMN_CLASSROOM_ID TEXT PRIMARY KEY,
+                    $COLUMN_UID TEXT,
+                    $COLUMN_NAME TEXT,
+                    $COLUMN_SECTION TEXT,
+                    $COLUMN_ROOM TEXT,
+                    $COLUMN_SUBJECT TEXT,
+                    $COLUMN_CLASS_CODE TEXT,
+                    $COLUMN_CLASSROOM_IMAGE_PATH TEXT,
+                    $COLUMN_INSTRUCTOR_NAME TEXT
+                )
+            """.trimIndent())
+            db.execSQL("""
+                CREATE TABLE $TABLE_CLASSROOM_UPDATES (
+                    $COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                    $COLUMN_CLASSROOM_ID TEXT,
+                    $COLUMN_UID TEXT,
+                    $COLUMN_NAME TEXT,
+                    $COLUMN_SECTION TEXT,
+                    $COLUMN_ROOM TEXT,
+                    $COLUMN_SUBJECT TEXT,
+                    $COLUMN_CLASS_CODE TEXT,
+                    $COLUMN_CLASSROOM_IMAGE_PATH TEXT,
+                    $COLUMN_INSTRUCTOR_NAME TEXT
+                )
+            """.trimIndent())
+        }
+        if (oldVersion < 4) {
+            db.execSQL("ALTER TABLE $TABLE_CLASSROOMS ADD COLUMN $COLUMN_INSTRUCTOR_NAME TEXT")
+            db.execSQL("ALTER TABLE $TABLE_CLASSROOM_UPDATES ADD COLUMN $COLUMN_INSTRUCTOR_NAME TEXT")
+        }
+        if (oldVersion < 5) {
+            db.execSQL("""
+            CREATE TABLE $TABLE_CLASSES (
+                $COLUMN_CLASSROOM_ID TEXT,
+                $COLUMN_MEMBER_UID TEXT,
+                PRIMARY KEY ($COLUMN_CLASSROOM_ID, $COLUMN_MEMBER_UID)
+            )
+        """.trimIndent())
         }
     }
 
@@ -225,4 +325,224 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         db.insert(TABLE_PROFILE_UPDATES, null, values)
     }
 
+
+
+
+    // New classroom methods
+    // Classroom methods
+    fun insertClassroom(
+        classroomId: String,
+        uid: String,
+        name: String,
+        section: String,
+        room: String,
+        subject: String,
+        classCode: String,
+        imagePath: String?,
+        instructorName: String
+    ): Boolean {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put(COLUMN_CLASSROOM_ID, classroomId)
+            put(COLUMN_UID, uid)
+            put(COLUMN_NAME, name)
+            put(COLUMN_SECTION, section)
+            put(COLUMN_ROOM, room)
+            put(COLUMN_SUBJECT, subject)
+            put(COLUMN_CLASS_CODE, classCode)
+            put(COLUMN_CLASSROOM_IMAGE_PATH, imagePath)
+            put(COLUMN_INSTRUCTOR_NAME, instructorName)
+        }
+        val result = db.insert(TABLE_CLASSROOMS, null, values)
+        db.close()
+        return result != -1L
+    }
+    fun getClassroom(classroomId: String): Map<String, String>? {
+        val db = readableDatabase
+        val cursor = db.query(
+            TABLE_CLASSROOMS,
+            arrayOf(
+                COLUMN_NAME,
+                COLUMN_SECTION,
+                COLUMN_ROOM,
+                COLUMN_SUBJECT,
+                COLUMN_CLASS_CODE,
+                COLUMN_CLASSROOM_IMAGE_PATH,
+                COLUMN_INSTRUCTOR_NAME
+            ),
+            "$COLUMN_CLASSROOM_ID = ?",
+            arrayOf(classroomId),
+            null,
+            null,
+            null
+        )
+        return if (cursor.moveToFirst()) {
+            val map = mutableMapOf<String, String>()
+            map["name"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NAME)) ?: ""
+            map["section"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_SECTION)) ?: ""
+            map["room"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ROOM)) ?: ""
+            map["subject"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_SUBJECT)) ?: ""
+            map["class_code"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CLASS_CODE)) ?: ""
+            val imagePath = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CLASSROOM_IMAGE_PATH)) ?: ""
+            map["image_path"] = if (imagePath.isNotEmpty()) imagePath else ""
+            map["instructor_name"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_INSTRUCTOR_NAME)) ?: ""
+            cursor.close()
+            map
+        } else {
+            cursor.close()
+            null
+        }
+    }
+
+    fun queueClassroomUpdate(
+        classroomId: String,
+        uid: String,
+        name: String,
+        section: String,
+        room: String,
+        subject: String,
+        classCode: String,
+        imagePath: String?,
+        instructorName: String
+    ) {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put(COLUMN_CLASSROOM_ID, classroomId)
+            put(COLUMN_UID, uid)
+            put(COLUMN_NAME, name)
+            put(COLUMN_SECTION, section)
+            put(COLUMN_ROOM, room)
+            put(COLUMN_SUBJECT, subject)
+            put(COLUMN_CLASS_CODE, classCode)
+            put(COLUMN_CLASSROOM_IMAGE_PATH, imagePath)
+            put(COLUMN_INSTRUCTOR_NAME, instructorName)
+        }
+        db.insert(TABLE_CLASSROOM_UPDATES, null, values)
+        db.close()
+    }
+
+    fun getAllClassroomsForUser(uid: String): List<Map<String, String>> {
+        val classrooms = mutableListOf<Map<String, String>>()
+        val db = readableDatabase
+        val cursor = db.query(
+            TABLE_CLASSROOMS,
+            arrayOf(
+                COLUMN_CLASSROOM_ID,
+                COLUMN_NAME,
+                COLUMN_SECTION,
+                COLUMN_ROOM,
+                COLUMN_SUBJECT,
+                COLUMN_CLASS_CODE,
+                COLUMN_CLASSROOM_IMAGE_PATH,
+                COLUMN_INSTRUCTOR_NAME
+            ),
+            "$COLUMN_UID = ?",
+            arrayOf(uid),
+            null,
+            null,
+            null
+        )
+        while (cursor.moveToNext()) {
+            val map = mutableMapOf<String, String>()
+            map["classroom_id"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CLASSROOM_ID)) ?: ""
+            map["name"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NAME)) ?: ""
+            map["section"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_SECTION)) ?: ""
+            map["room"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ROOM)) ?: ""
+            map["subject"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_SUBJECT)) ?: ""
+            map["class_code"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CLASS_CODE)) ?: ""
+            // Use local file path
+            val imagePath = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CLASSROOM_IMAGE_PATH)) ?: ""
+            map["image_path"] = if (imagePath.isNotEmpty()) imagePath else ""
+            map["instructor_name"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_INSTRUCTOR_NAME)) ?: ""
+            classrooms.add(map)
+        }
+        cursor.close()
+        db.close()
+        return classrooms
+    }
+
+
+
+    fun updateUserProfileImage(uid: String, imagePath: String?): Boolean {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put(COLUMN_PROFILE_IMAGE_PATH, imagePath)
+        }
+        val rowsAffected = db.update(
+            TABLE_USERS,
+            values,
+            "$COLUMN_UID = ?",
+            arrayOf(uid)
+        )
+        db.close()
+        return rowsAffected > 0
+    }
+
+    fun addClassMember(classroomId: String, memberUid: String): Boolean {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put(COLUMN_CLASSROOM_ID, classroomId)
+            put(COLUMN_MEMBER_UID, memberUid)
+        }
+        val result = db.insert(TABLE_CLASSES, null, values)
+        db.close()
+        return result != -1L
+    }
+
+    fun getUserClassrooms(uid: String): List<String> {
+        val classroomIds = mutableListOf<String>()
+        val db = readableDatabase
+        val cursor = db.query(
+            TABLE_CLASSES,
+            arrayOf(COLUMN_CLASSROOM_ID),
+            "$COLUMN_MEMBER_UID = ?",
+            arrayOf(uid),
+            null,
+            null,
+            null
+        )
+        while (cursor.moveToNext()) {
+            val classroomId = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CLASSROOM_ID)) ?: continue
+            classroomIds.add(classroomId)
+        }
+        cursor.close()
+        db.close()
+        return classroomIds
+    }
+
+    fun joinClassByCode(classCode: String, memberUid: String): String? {
+        val db = readableDatabase
+        val cursor = db.query(
+            TABLE_CLASSROOMS,
+            arrayOf(COLUMN_CLASSROOM_ID, COLUMN_NAME, COLUMN_SECTION, COLUMN_ROOM, COLUMN_SUBJECT, COLUMN_CLASS_CODE, COLUMN_CLASSROOM_IMAGE_PATH, COLUMN_INSTRUCTOR_NAME),
+            "$COLUMN_CLASS_CODE = ?",
+            arrayOf(classCode),
+            null,
+            null,
+            null
+        )
+        val classroomId = if (cursor.moveToFirst()) {
+            val id = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CLASSROOM_ID))
+            val name = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NAME)) ?: ""
+            val section = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_SECTION)) ?: ""
+            val room = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ROOM)) ?: ""
+            val subject = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_SUBJECT)) ?: ""
+            val classCode = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CLASS_CODE)) ?: ""
+            val imagePath = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CLASSROOM_IMAGE_PATH)) ?: ""
+            val instructorName = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_INSTRUCTOR_NAME)) ?: ""
+            // Insert classroom data into SQLite
+            insertClassroom(id, memberUid, name, section, room, subject, classCode, imagePath, instructorName)
+            id
+        } else {
+            null
+        }
+        cursor.close()
+        if (classroomId != null) {
+            addClassMember(classroomId, memberUid)
+        }
+        db.close()
+        return classroomId
+    }
 }
+
+

@@ -9,6 +9,8 @@
     android:paddingEnd="20dp"
     android:paddingTop="40dp"
     android:paddingBottom="40dp"
+    android:paddingLeft="5dp"
+    android:paddingRight="5dp"
     android:fitsSystemWindows="true"
     android:id="@+id/main"
     tools:context=".Home">

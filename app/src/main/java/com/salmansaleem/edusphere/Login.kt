@@ -171,7 +171,7 @@ class Login : AppCompatActivity() {
                                         sendTokenToBackend(idToken, userData)
 
                                         Toast.makeText(this, "Login Successful!", Toast.LENGTH_SHORT).show()
-                                        startActivity(Intent(this, EditProfile::class.java))
+                                        startActivity(Intent(this, Home::class.java))
                                         finish()
                                     } else {
                                         Toast.makeText(this, "Database error: ${dbTask.exception?.message}", Toast.LENGTH_SHORT).show()
@@ -205,7 +205,7 @@ class Login : AppCompatActivity() {
                 }
 
                 Toast.makeText(this, "Offline Login Successful!", Toast.LENGTH_SHORT).show()
-                startActivity(Intent(this, EditProfile::class.java))
+                startActivity(Intent(this, Home::class.java))
                 finish()
             } else {
                 Toast.makeText(this, "Invalid email or password", Toast.LENGTH_LONG).show()

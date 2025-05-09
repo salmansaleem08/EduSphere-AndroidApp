@@ -291,10 +291,18 @@ class EditProfile : AppCompatActivity() {
         // Update SQLite
         databaseHelper.updateUserProfile(uid, name, bio, phone)
 
-        // Save selected image locally
+         //Save selected image locally
         if (selectedBitmap != null) {
             localImagePath = saveImageLocally(selectedBitmap!!, uid)
         }
+
+
+        // Save selected image locally
+//        if (selectedBitmap != null) {
+//            localImagePath = saveImageLocally(selectedBitmap!!, uid)
+//            databaseHelper.updateUserProfileImage(uid, localImagePath) // New helper method
+//        }
+
 
         if (isOnline()) {
             // Update Firebase

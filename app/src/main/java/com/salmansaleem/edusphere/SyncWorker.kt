@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit
 class SyncWorker(appContext: Context, params: WorkerParameters) : CoroutineWorker(appContext, params) {
     private val TAG = "SyncWorker"
     private val databaseHelper = DatabaseHelper(appContext)
-    private val database = FirebaseDatabase.getInstance().getReference("Users")
+    private val database = FirebaseDatabase.getInstance()
 
     private val apiService: ApiService by lazy {
         val client = OkHttpClient.Builder()
@@ -40,8 +40,11 @@ class SyncWorker(appContext: Context, params: WorkerParameters) : CoroutineWorke
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-            val db = databaseHelper.readableDatabase
-            val cursor = db.query(
+            var allSyncedSuccessfully = true
+
+            // Sync profile updates (existing)
+            val profileDb = databaseHelper.readableDatabase
+            val profileCursor = profileDb.query(
                 DatabaseHelper.TABLE_PROFILE_UPDATES,
                 arrayOf(
                     DatabaseHelper.COLUMN_ID,
@@ -54,17 +57,14 @@ class SyncWorker(appContext: Context, params: WorkerParameters) : CoroutineWorke
                 null, null, null, null, null
             )
 
-            var allSyncedSuccessfully = true
+            while (profileCursor.moveToNext()) {
+                val id = profileCursor.getLong(profileCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_ID))
+                val uid = profileCursor.getString(profileCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_UID))
+                val name = profileCursor.getString(profileCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_NAME)) ?: ""
+                val bio = profileCursor.getString(profileCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_BIO)) ?: ""
+                val phone = profileCursor.getString(profileCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PHONE)) ?: ""
+                val profileImagePath = profileCursor.getString(profileCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROFILE_IMAGE_PATH))
 
-            while (cursor.moveToNext()) {
-                val id = cursor.getLong(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_ID))
-                val uid = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_UID))
-                val name = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_NAME)) ?: ""
-                val bio = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_BIO)) ?: ""
-                val phone = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PHONE)) ?: ""
-                val profileImagePath = cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_PROFILE_IMAGE_PATH))
-
-                // Update Firebase
                 val userData = mapOf(
                     "fullName" to name,
                     "bio" to bio,
@@ -72,7 +72,7 @@ class SyncWorker(appContext: Context, params: WorkerParameters) : CoroutineWorke
                 )
                 var firebaseSuccess = false
                 try {
-                    database.child(uid).updateChildren(userData).await()
+                    database.getReference("Users").child(uid).updateChildren(userData).await()
                     firebaseSuccess = true
                     Log.d(TAG, "Firebase synced successfully for uid $uid")
                 } catch (e: Exception) {
@@ -80,8 +80,7 @@ class SyncWorker(appContext: Context, params: WorkerParameters) : CoroutineWorke
                     allSyncedSuccessfully = false
                 }
 
-                // Upload image if exists
-                var imageSuccess = true // Assume success if no image to upload
+                var imageSuccess = true
                 if (profileImagePath != null) {
                     val file = File(profileImagePath)
                     if (file.exists()) {
@@ -101,7 +100,6 @@ class SyncWorker(appContext: Context, params: WorkerParameters) : CoroutineWorke
                             val response = apiService.uploadProfileImage(uidPart, imagePart).execute()
                             if (response.isSuccessful && response.body()?.success == true) {
                                 Log.d(TAG, "Synced image for uid $uid: ${response.body()?.image_url}")
-                                // Save the uploaded image locally
                                 response.body()?.image_url?.let { url ->
                                     try {
                                         val bitmapFromServer = BitmapFactory.decodeStream(java.net.URL(url).openStream())
@@ -134,23 +132,147 @@ class SyncWorker(appContext: Context, params: WorkerParameters) : CoroutineWorke
                     }
                 }
 
-                // Delete the processed update only if both Firebase and image sync were successful
                 if (firebaseSuccess && imageSuccess) {
                     try {
-                        db.delete(
+                        profileDb.delete(
                             DatabaseHelper.TABLE_PROFILE_UPDATES,
                             "${DatabaseHelper.COLUMN_ID} = ?",
                             arrayOf(id.toString())
                         )
-                        Log.d(TAG, "Deleted queued update for id $id")
+                        Log.d(TAG, "Deleted queued profile update for id $id")
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error deleting queued update for id $id: ${e.message}")
+                        Log.e(TAG, "Error deleting queued profile update for id $id: ${e.message}")
                         allSyncedSuccessfully = false
                     }
                 }
             }
-            cursor.close()
-            db.close()
+            profileCursor.close()
+            profileDb.close()
+
+            // Sync classroom updates
+            // Sync classroom updates
+            val classroomDb = databaseHelper.readableDatabase
+            val classroomCursor = classroomDb.query(
+                DatabaseHelper.TABLE_CLASSROOM_UPDATES,
+                arrayOf(
+                    DatabaseHelper.COLUMN_ID,
+                    DatabaseHelper.COLUMN_CLASSROOM_ID,
+                    DatabaseHelper.COLUMN_UID,
+                    DatabaseHelper.COLUMN_NAME,
+                    DatabaseHelper.COLUMN_SECTION,
+                    DatabaseHelper.COLUMN_ROOM,
+                    DatabaseHelper.COLUMN_SUBJECT,
+                    DatabaseHelper.COLUMN_CLASS_CODE,
+                    DatabaseHelper.COLUMN_CLASSROOM_IMAGE_PATH,
+                    DatabaseHelper.COLUMN_INSTRUCTOR_NAME
+                ),
+                null, null, null, null, null
+            )
+
+            while (classroomCursor.moveToNext()) {
+                val id = classroomCursor.getLong(classroomCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_ID))
+                val classroomId = classroomCursor.getString(classroomCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_CLASSROOM_ID))
+                val uid = classroomCursor.getString(classroomCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_UID))
+                val name = classroomCursor.getString(classroomCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_NAME)) ?: ""
+                val section = classroomCursor.getString(classroomCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_SECTION)) ?: ""
+                val room = classroomCursor.getString(classroomCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_ROOM)) ?: ""
+                val subject = classroomCursor.getString(classroomCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_SUBJECT)) ?: ""
+                val classCode = classroomCursor.getString(classroomCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_CLASS_CODE)) ?: ""
+                val classroomImagePath = classroomCursor.getString(classroomCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_CLASSROOM_IMAGE_PATH))
+                val instructorName = classroomCursor.getString(classroomCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_INSTRUCTOR_NAME)) ?: ""
+                val classroomData = mapOf(
+                    "name" to name,
+                    "section" to section,
+                    "room" to room,
+                    "subject" to subject,
+                    "class_code" to classCode,
+                    "uid" to uid,
+                    "instructor_name" to instructorName
+                )
+                var firebaseSuccess = false
+                try {
+                    database.getReference("Classrooms").child(classroomId).setValue(classroomData).await()
+                    // Add creator as member in Firebase Classes table
+                    database.getReference("Classes").child(classroomId).child("members").child(uid).setValue(true).await()
+                    firebaseSuccess = true
+                    Log.d(TAG, "Firebase synced successfully for classroom $classroomId")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Firebase sync error for classroom $classroomId: ${e.message}")
+                    allSyncedSuccessfully = false
+                }
+                var imageSuccess = true
+                if (classroomImagePath != null) {
+                    val file = File(classroomImagePath)
+                    if (file.exists()) {
+                        try {
+                            val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+                            val stream = java.io.ByteArrayOutputStream()
+                            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                            val byteArray = stream.toByteArray()
+
+                            val imagePart = MultipartBody.Part.createFormData(
+                                "image",
+                                "${classroomId}_CLASSROOM_IMAGE.png",
+                                RequestBody.create("image/png".toMediaType(), byteArray)
+                            )
+                            val classroomIdPart = RequestBody.create("text/plain".toMediaType(), classroomId)
+
+                            val response = apiService.uploadClassroomImage(classroomIdPart, imagePart).execute()
+                            if (response.isSuccessful && response.body()?.success == true) {
+                                Log.d(TAG, "Synced classroom image for classroom $classroomId: ${response.body()?.image_url}")
+                                response.body()?.image_url?.let { url ->
+                                    try {
+                                        val bitmapFromServer = BitmapFactory.decodeStream(java.net.URL(url).openStream())
+                                        val fileName = "${classroomId}_classroom.png"
+                                        val newFile = File(applicationContext.filesDir, fileName)
+                                        FileOutputStream(newFile).use { out ->
+                                            bitmapFromServer.compress(Bitmap.CompressFormat.PNG, 100, out)
+                                        }
+                                        Log.d(TAG, "Saved synced classroom image locally at: ${newFile.absolutePath}")
+
+                                        // Update SQLite with local path
+                                        databaseHelper.insertClassroom(
+                                            classroomId, uid, name, section, room, subject, classCode, newFile.absolutePath, instructorName
+                                        )
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Error saving synced classroom image locally: ${e.message}")
+                                        allSyncedSuccessfully = false
+                                        imageSuccess = false
+                                    }
+                                }
+                            } else {
+                                Log.e(TAG, "Classroom image sync failed for classroom $classroomId: ${response.code()} ${response.message()}")
+                                allSyncedSuccessfully = false
+                                imageSuccess = false
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error syncing classroom image for classroom $classroomId: ${e.message}")
+                            allSyncedSuccessfully = false
+                            imageSuccess = false
+                        }
+                    } else {
+                        Log.w(TAG, "Classroom image file does not exist at path: $classroomImagePath")
+                        allSyncedSuccessfully = false
+                        imageSuccess = false
+                    }
+                }
+
+                if (firebaseSuccess && imageSuccess) {
+                    try {
+                        classroomDb.delete(
+                            DatabaseHelper.TABLE_CLASSROOM_UPDATES,
+                            "${DatabaseHelper.COLUMN_ID} = ?",
+                            arrayOf(id.toString())
+                        )
+                        Log.d(TAG, "Deleted queued classroom update for id $id")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error deleting queued classroom update for id $id: ${e.message}")
+                        allSyncedSuccessfully = false
+                    }
+                }
+            }
+            classroomCursor.close()
+            classroomDb.close()
 
             if (allSyncedSuccessfully) {
                 Log.d(TAG, "All updates synced successfully")
