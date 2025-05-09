@@ -274,6 +274,63 @@ class SyncWorker(appContext: Context, params: WorkerParameters) : CoroutineWorke
             classroomCursor.close()
             classroomDb.close()
 
+
+
+            val announcementDb = databaseHelper.readableDatabase
+            val announcementCursor = announcementDb.query(
+                DatabaseHelper.TABLE_ANNOUNCEMENT_UPDATES,
+                arrayOf(
+                    DatabaseHelper.COLUMN_ID,
+                    DatabaseHelper.COLUMN_ANNOUNCEMENT_ID,
+                    DatabaseHelper.COLUMN_CLASSROOM_ID,
+                    DatabaseHelper.COLUMN_UID,
+                    DatabaseHelper.COLUMN_NAME,
+                    DatabaseHelper.COLUMN_ANNOUNCEMENT_TEXT,
+                    DatabaseHelper.COLUMN_TIMESTAMP
+                ),
+                null, null, null, null, null
+            )
+            while (announcementCursor.moveToNext()) {
+                val id = announcementCursor.getLong(announcementCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_ID))
+                val announcementId = announcementCursor.getString(announcementCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_ANNOUNCEMENT_ID))
+                val classroomId = announcementCursor.getString(announcementCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_CLASSROOM_ID))
+                val uid = announcementCursor.getString(announcementCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_UID))
+                val name = announcementCursor.getString(announcementCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_NAME)) ?: ""
+                val text = announcementCursor.getString(announcementCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_ANNOUNCEMENT_TEXT)) ?: ""
+                val timestamp = announcementCursor.getString(announcementCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_TIMESTAMP)) ?: ""
+                val announcementData = mapOf(
+                    "uid" to uid,
+                    "name" to name,
+                    "text" to text,
+                    "timestamp" to timestamp
+                )
+                var firebaseSuccess = false
+                try {
+                    database.getReference("Announcements").child(classroomId).child(announcementId).setValue(announcementData).await()
+                    firebaseSuccess = true
+                    Log.d(TAG, "Firebase synced successfully for announcement $announcementId")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Firebase sync error for announcement $announcementId: ${e.message}")
+                    allSyncedSuccessfully = false
+                }
+                if (firebaseSuccess) {
+                    try {
+                        announcementDb.delete(
+                            DatabaseHelper.TABLE_ANNOUNCEMENT_UPDATES,
+                            "${DatabaseHelper.COLUMN_ID} = ?",
+                            arrayOf(id.toString())
+                        )
+                        Log.d(TAG, "Deleted queued announcement update for id $id")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error deleting queued announcement update for id $id: ${e.message}")
+                        allSyncedSuccessfully = false
+                    }
+                }
+            }
+            announcementCursor.close()
+            announcementDb.close()
+
+
             if (allSyncedSuccessfully) {
                 Log.d(TAG, "All updates synced successfully")
                 Result.success()

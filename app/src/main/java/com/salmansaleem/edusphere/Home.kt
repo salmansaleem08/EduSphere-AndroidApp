@@ -79,7 +79,7 @@ class Home : AppCompatActivity() {
 
         // Setup RecyclerView
         classRecyclerView.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
-        classRecyclerView.adapter = ClassAdapter(classrooms)
+        classRecyclerView.adapter = ClassAdapter(classrooms){}
 
         // Check authentication
         val currentUser = auth.currentUser
@@ -103,6 +103,18 @@ class Home : AppCompatActivity() {
         addClassButton.setOnClickListener {
             showClassOptionsDialog(uid)
         }
+
+
+        // Setup RecyclerView
+        classRecyclerView.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        classRecyclerView.adapter = ClassAdapter(classrooms) { classroom ->
+            val intent = Intent(this, ClassPage::class.java).apply {
+                putExtra("classroom_id", classroom.classroomId)
+                putExtra("classroom_name", classroom.name)
+            }
+            startActivity(intent)
+        }
+
     }
 
     private fun isOnline(): Boolean {

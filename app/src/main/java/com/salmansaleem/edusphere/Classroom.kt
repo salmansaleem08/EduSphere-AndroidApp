@@ -6,3 +6,12 @@ data class Classroom(
     val instructorName: String,
     val imagePath: String?
 )
+
+data class Announcement(
+    val announcementId: String,
+    val classroomId: String,
+    val uid: String,
+    val name: String,
+    val text: String,
+    val timestamp: String
+)

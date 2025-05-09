@@ -9,12 +9,14 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
     companion object {
         private const val DATABASE_NAME = "EduSphere.db"
-        private const val DATABASE_VERSION = 5 // Updated version for classroom support
+        private const val DATABASE_VERSION = 6 // Updated version for classroom support
         private const val TABLE_USERS = "users"
         const val TABLE_PROFILE_UPDATES = "profile_updates"
         private const val TABLE_CLASSROOMS = "classrooms"
         const val TABLE_CLASSROOM_UPDATES = "classroom_updates"
         private const val TABLE_CLASSES = "classes"
+        private const val TABLE_ANNOUNCEMENTS = "announcements"
+        const val TABLE_ANNOUNCEMENT_UPDATES = "announcement_updates"
 
 
         const val COLUMN_ID = "id"
@@ -40,6 +42,11 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         const val COLUMN_INSTRUCTOR_NAME = "instructor_name"
 
         const val COLUMN_MEMBER_UID = "member_uid"
+
+
+        const val COLUMN_ANNOUNCEMENT_ID = "announcement_id"
+        const val COLUMN_ANNOUNCEMENT_TEXT = "announcement_text"
+        const val COLUMN_TIMESTAMP = "timestamp"
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -108,6 +115,31 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         )
     """.trimIndent()
         db.execSQL(createClassesTable)
+
+        val createAnnouncementsTable = """
+        CREATE TABLE $TABLE_ANNOUNCEMENTS (
+            $COLUMN_ANNOUNCEMENT_ID TEXT PRIMARY KEY,
+            $COLUMN_CLASSROOM_ID TEXT,
+            $COLUMN_UID TEXT,
+            $COLUMN_NAME TEXT,
+            $COLUMN_ANNOUNCEMENT_TEXT TEXT,
+            $COLUMN_TIMESTAMP TEXT
+        )
+    """.trimIndent()
+        db.execSQL(createAnnouncementsTable)
+
+        val createAnnouncementUpdatesTable = """
+        CREATE TABLE $TABLE_ANNOUNCEMENT_UPDATES (
+            $COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            $COLUMN_ANNOUNCEMENT_ID TEXT,
+            $COLUMN_CLASSROOM_ID TEXT,
+            $COLUMN_UID TEXT,
+            $COLUMN_NAME TEXT,
+            $COLUMN_ANNOUNCEMENT_TEXT TEXT,
+            $COLUMN_TIMESTAMP TEXT
+        )
+    """.trimIndent()
+        db.execSQL(createAnnouncementUpdatesTable)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -163,6 +195,30 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 $COLUMN_CLASSROOM_ID TEXT,
                 $COLUMN_MEMBER_UID TEXT,
                 PRIMARY KEY ($COLUMN_CLASSROOM_ID, $COLUMN_MEMBER_UID)
+            )
+        """.trimIndent())
+        }
+
+        if (oldVersion < 6) {
+            db.execSQL("""
+            CREATE TABLE $TABLE_ANNOUNCEMENTS (
+                $COLUMN_ANNOUNCEMENT_ID TEXT PRIMARY KEY,
+                $COLUMN_CLASSROOM_ID TEXT,
+                $COLUMN_UID TEXT,
+                $COLUMN_NAME TEXT,
+                $COLUMN_ANNOUNCEMENT_TEXT TEXT,
+                $COLUMN_TIMESTAMP TEXT
+            )
+        """.trimIndent())
+            db.execSQL("""
+            CREATE TABLE $TABLE_ANNOUNCEMENT_UPDATES (
+                $COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                $COLUMN_ANNOUNCEMENT_ID TEXT,
+                $COLUMN_CLASSROOM_ID TEXT,
+                $COLUMN_UID TEXT,
+                $COLUMN_NAME TEXT,
+                $COLUMN_ANNOUNCEMENT_TEXT TEXT,
+                $COLUMN_TIMESTAMP TEXT
             )
         """.trimIndent())
         }
@@ -542,6 +598,85 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         }
         db.close()
         return classroomId
+    }
+
+
+
+    fun insertAnnouncement(
+        announcementId: String,
+        classroomId: String,
+        uid: String,
+        name: String,
+        text: String,
+        timestamp: String
+    ): Boolean {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put(COLUMN_ANNOUNCEMENT_ID, announcementId)
+            put(COLUMN_CLASSROOM_ID, classroomId)
+            put(COLUMN_UID, uid)
+            put(COLUMN_NAME, name)
+            put(COLUMN_ANNOUNCEMENT_TEXT, text)
+            put(COLUMN_TIMESTAMP, timestamp)
+        }
+        val result = db.insert(TABLE_ANNOUNCEMENTS, null, values)
+        db.close()
+        return result != -1L
+    }
+
+    fun queueAnnouncementUpdate(
+        announcementId: String,
+        classroomId: String,
+        uid: String,
+        name: String,
+        text: String,
+        timestamp: String
+    ) {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put(COLUMN_ANNOUNCEMENT_ID, announcementId)
+            put(COLUMN_CLASSROOM_ID, classroomId)
+            put(COLUMN_UID, uid)
+            put(COLUMN_NAME, name)
+            put(COLUMN_ANNOUNCEMENT_TEXT, text)
+            put(COLUMN_TIMESTAMP, timestamp)
+        }
+        db.insert(TABLE_ANNOUNCEMENT_UPDATES, null, values)
+        db.close()
+    }
+
+    fun getAnnouncements(classroomId: String): List<Map<String, String>> {
+        val announcements = mutableListOf<Map<String, String>>()
+        val db = readableDatabase
+        val cursor = db.query(
+            TABLE_ANNOUNCEMENTS,
+            arrayOf(
+                COLUMN_ANNOUNCEMENT_ID,
+                COLUMN_CLASSROOM_ID,
+                COLUMN_UID,
+                COLUMN_NAME,
+                COLUMN_ANNOUNCEMENT_TEXT,
+                COLUMN_TIMESTAMP
+            ),
+            "$COLUMN_CLASSROOM_ID = ?",
+            arrayOf(classroomId),
+            null,
+            null,
+            "$COLUMN_TIMESTAMP DESC" // Newest first
+        )
+        while (cursor.moveToNext()) {
+            val map = mutableMapOf<String, String>()
+            map["announcement_id"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ANNOUNCEMENT_ID)) ?: ""
+            map["classroom_id"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CLASSROOM_ID)) ?: ""
+            map["uid"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_UID)) ?: ""
+            map["name"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NAME)) ?: ""
+            map["announcement_text"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ANNOUNCEMENT_TEXT)) ?: ""
+            map["timestamp"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TIMESTAMP)) ?: ""
+            announcements.add(map)
+        }
+        cursor.close()
+        db.close()
+        return announcements
     }
 }
 

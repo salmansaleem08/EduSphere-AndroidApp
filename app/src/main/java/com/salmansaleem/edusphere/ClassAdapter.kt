@@ -11,20 +11,40 @@ import com.squareup.picasso.Picasso
 import java.io.File
 
 
-class ClassAdapter(private val classrooms: List<Classroom>) : RecyclerView.Adapter<ClassViewHolder>() {
+//class ClassAdapter(private val classrooms: List<Classroom>) : RecyclerView.Adapter<ClassViewHolder>() {
+//    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ClassViewHolder {
+//        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_class, parent, false)
+//        return ClassViewHolder(view)
+//    }
+//
+//    override fun onBindViewHolder(holder: ClassViewHolder, position: Int) {
+//        holder.bind(classrooms[position])
+//    }
+//
+//    override fun getItemCount(): Int = classrooms.size
+//}
+
+class ClassAdapter(
+    private val classrooms: List<Classroom>,
+    private val onClassroomClick: (Classroom) -> Unit // Add click listener lambda
+) : RecyclerView.Adapter<ClassViewHolder>() {
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ClassViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.item_class, parent, false)
         return ClassViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: ClassViewHolder, position: Int) {
-        holder.bind(classrooms[position])
+        val classroom = classrooms[position]
+        holder.bind(classroom)
+        // Set click listener on the item view
+        holder.itemView.setOnClickListener {
+            onClassroomClick(classroom)
+        }
     }
 
     override fun getItemCount(): Int = classrooms.size
 }
-
-
 
 class ClassViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
     private val classTitle: TextView = itemView.findViewById(R.id.tv_class_title)
