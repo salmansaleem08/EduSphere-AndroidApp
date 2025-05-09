@@ -9,7 +9,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
     companion object {
         private const val DATABASE_NAME = "EduSphere.db"
-        private const val DATABASE_VERSION = 6 // Updated version for classroom support
+        private const val DATABASE_VERSION = 7 // Updated version for classroom support
         private const val TABLE_USERS = "users"
         const val TABLE_PROFILE_UPDATES = "profile_updates"
         private const val TABLE_CLASSROOMS = "classrooms"
@@ -17,6 +17,8 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         private const val TABLE_CLASSES = "classes"
         private const val TABLE_ANNOUNCEMENTS = "announcements"
         const val TABLE_ANNOUNCEMENT_UPDATES = "announcement_updates"
+        private const val TABLE_COMMENTS = "comments"
+        const val TABLE_COMMENT_UPDATES = "comment_updates"
 
 
         const val COLUMN_ID = "id"
@@ -47,6 +49,11 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         const val COLUMN_ANNOUNCEMENT_ID = "announcement_id"
         const val COLUMN_ANNOUNCEMENT_TEXT = "announcement_text"
         const val COLUMN_TIMESTAMP = "timestamp"
+
+
+
+        const val COLUMN_COMMENT_ID = "comment_id"
+        const val COLUMN_COMMENT_TEXT = "comment_text"
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -140,6 +147,34 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         )
     """.trimIndent()
         db.execSQL(createAnnouncementUpdatesTable)
+
+
+        val createCommentsTable = """
+        CREATE TABLE $TABLE_COMMENTS (
+            $COLUMN_COMMENT_ID TEXT PRIMARY KEY,
+            $COLUMN_ANNOUNCEMENT_ID TEXT,
+            $COLUMN_CLASSROOM_ID TEXT,
+            $COLUMN_UID TEXT,
+            $COLUMN_NAME TEXT,
+            $COLUMN_COMMENT_TEXT TEXT,
+            $COLUMN_TIMESTAMP TEXT
+        )
+    """.trimIndent()
+        db.execSQL(createCommentsTable)
+
+        val createCommentUpdatesTable = """
+        CREATE TABLE $TABLE_COMMENT_UPDATES (
+            $COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            $COLUMN_COMMENT_ID TEXT,
+            $COLUMN_ANNOUNCEMENT_ID TEXT,
+            $COLUMN_CLASSROOM_ID TEXT,
+            $COLUMN_UID TEXT,
+            $COLUMN_NAME TEXT,
+            $COLUMN_COMMENT_TEXT TEXT,
+            $COLUMN_TIMESTAMP TEXT
+        )
+    """.trimIndent()
+        db.execSQL(createCommentUpdatesTable)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -218,6 +253,31 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 $COLUMN_UID TEXT,
                 $COLUMN_NAME TEXT,
                 $COLUMN_ANNOUNCEMENT_TEXT TEXT,
+                $COLUMN_TIMESTAMP TEXT
+            )
+        """.trimIndent())
+        }
+        if (oldVersion < 7) {
+            db.execSQL("""
+            CREATE TABLE $TABLE_COMMENTS (
+                $COLUMN_COMMENT_ID TEXT PRIMARY KEY,
+                $COLUMN_ANNOUNCEMENT_ID TEXT,
+                $COLUMN_CLASSROOM_ID TEXT,
+                $COLUMN_UID TEXT,
+                $COLUMN_NAME TEXT,
+                $COLUMN_COMMENT_TEXT TEXT,
+                $COLUMN_TIMESTAMP TEXT
+            )
+        """.trimIndent())
+            db.execSQL("""
+            CREATE TABLE $TABLE_COMMENT_UPDATES (
+                $COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                $COLUMN_COMMENT_ID TEXT,
+                $COLUMN_ANNOUNCEMENT_ID TEXT,
+                $COLUMN_CLASSROOM_ID TEXT,
+                $COLUMN_UID TEXT,
+                $COLUMN_NAME TEXT,
+                $COLUMN_COMMENT_TEXT TEXT,
                 $COLUMN_TIMESTAMP TEXT
             )
         """.trimIndent())
@@ -677,6 +737,90 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         cursor.close()
         db.close()
         return announcements
+    }
+
+
+    fun insertComment(
+        commentId: String,
+        announcementId: String,
+        classroomId: String,
+        uid: String,
+        name: String,
+        text: String,
+        timestamp: String
+    ): Boolean {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put(COLUMN_COMMENT_ID, commentId)
+            put(COLUMN_ANNOUNCEMENT_ID, announcementId)
+            put(COLUMN_CLASSROOM_ID, classroomId)
+            put(COLUMN_UID, uid)
+            put(COLUMN_NAME, name)
+            put(COLUMN_COMMENT_TEXT, text)
+            put(COLUMN_TIMESTAMP, timestamp)
+        }
+        val result = db.insert(TABLE_COMMENTS, null, values)
+        db.close()
+        return result != -1L
+    }
+
+    fun queueCommentUpdate(
+        commentId: String,
+        announcementId: String,
+        classroomId: String,
+        uid: String,
+        name: String,
+        text: String,
+        timestamp: String
+    ) {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put(COLUMN_COMMENT_ID, commentId)
+            put(COLUMN_ANNOUNCEMENT_ID, announcementId)
+            put(COLUMN_CLASSROOM_ID, classroomId)
+            put(COLUMN_UID, uid)
+            put(COLUMN_NAME, name)
+            put(COLUMN_COMMENT_TEXT, text)
+            put(COLUMN_TIMESTAMP, timestamp)
+        }
+        db.insert(TABLE_COMMENT_UPDATES, null, values)
+        db.close()
+    }
+
+    fun getComments(announcementId: String): List<Map<String, String>> {
+        val comments = mutableListOf<Map<String, String>>()
+        val db = readableDatabase
+        val cursor = db.query(
+            TABLE_COMMENTS,
+            arrayOf(
+                COLUMN_COMMENT_ID,
+                COLUMN_ANNOUNCEMENT_ID,
+                COLUMN_CLASSROOM_ID,
+                COLUMN_UID,
+                COLUMN_NAME,
+                COLUMN_COMMENT_TEXT,
+                COLUMN_TIMESTAMP
+            ),
+            "$COLUMN_ANNOUNCEMENT_ID = ?",
+            arrayOf(announcementId),
+            null,
+            null,
+            "$COLUMN_TIMESTAMP DESC" // Newest first
+        )
+        while (cursor.moveToNext()) {
+            val map = mutableMapOf<String, String>()
+            map["comment_id"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_COMMENT_ID)) ?: ""
+            map["announcement_id"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ANNOUNCEMENT_ID)) ?: ""
+            map["classroom_id"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CLASSROOM_ID)) ?: ""
+            map["uid"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_UID)) ?: ""
+            map["name"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NAME)) ?: ""
+            map["comment_text"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_COMMENT_TEXT)) ?: ""
+            map["timestamp"] = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TIMESTAMP)) ?: ""
+            comments.add(map)
+        }
+        cursor.close()
+        db.close()
+        return comments
     }
 }
 

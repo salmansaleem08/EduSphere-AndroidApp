@@ -331,6 +331,64 @@ class SyncWorker(appContext: Context, params: WorkerParameters) : CoroutineWorke
             announcementDb.close()
 
 
+            val commentDb = databaseHelper.readableDatabase
+            val commentCursor = commentDb.query(
+                DatabaseHelper.TABLE_COMMENT_UPDATES,
+                arrayOf(
+                    DatabaseHelper.COLUMN_ID,
+                    DatabaseHelper.COLUMN_COMMENT_ID,
+                    DatabaseHelper.COLUMN_ANNOUNCEMENT_ID,
+                    DatabaseHelper.COLUMN_CLASSROOM_ID,
+                    DatabaseHelper.COLUMN_UID,
+                    DatabaseHelper.COLUMN_NAME,
+                    DatabaseHelper.COLUMN_COMMENT_TEXT,
+                    DatabaseHelper.COLUMN_TIMESTAMP
+                ),
+                null, null, null, null, null
+            )
+
+            while (commentCursor.moveToNext()) {
+                val id = commentCursor.getLong(commentCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_ID))
+                val commentId = commentCursor.getString(commentCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_COMMENT_ID))
+                val announcementId = commentCursor.getString(commentCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_ANNOUNCEMENT_ID))
+                val classroomId = commentCursor.getString(commentCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_CLASSROOM_ID))
+                val uid = commentCursor.getString(commentCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_UID))
+                val name = commentCursor.getString(commentCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_NAME)) ?: ""
+                val text = commentCursor.getString(commentCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_COMMENT_TEXT)) ?: ""
+                val timestamp = commentCursor.getString(commentCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_TIMESTAMP)) ?: ""
+                val commentData = mapOf(
+                    "uid" to uid,
+                    "name" to name,
+                    "text" to text,
+                    "timestamp" to timestamp
+                )
+                var firebaseSuccess = false
+                try {
+                    database.getReference("Announcements").child(classroomId).child(announcementId).child("comments").child(commentId).setValue(commentData).await()
+                    firebaseSuccess = true
+                    Log.d(TAG, "Firebase synced successfully for comment $commentId")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Firebase sync error for comment $commentId: ${e.message}")
+                    allSyncedSuccessfully = false
+                }
+                if (firebaseSuccess) {
+                    try {
+                        commentDb.delete(
+                            DatabaseHelper.TABLE_COMMENT_UPDATES,
+                            "${DatabaseHelper.COLUMN_ID} = ?",
+                            arrayOf(id.toString())
+                        )
+                        Log.d(TAG, "Deleted queued comment update for id $id")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error deleting queued comment update for id $id: ${e.message}")
+                        allSyncedSuccessfully = false
+                    }
+                }
+            }
+            commentCursor.close()
+            commentDb.close()
+
+
             if (allSyncedSuccessfully) {
                 Log.d(TAG, "All updates synced successfully")
                 Result.success()

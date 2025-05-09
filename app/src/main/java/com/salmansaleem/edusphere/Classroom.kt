@@ -15,3 +15,12 @@ data class Announcement(
     val text: String,
     val timestamp: String
 )
+data class Comment(
+    val commentId: String,
+    val announcementId: String,
+    val classroomId: String,
+    val uid: String,
+    val name: String,
+    val text: String,
+    val timestamp: String
+)

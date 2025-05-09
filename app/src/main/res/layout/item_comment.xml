@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingTop="16dp"
+    android:paddingBottom="8dp"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp">
+
+
+
+    <!-- Comment content container -->
+    <RelativeLayout
+        android:id="@+id/comment_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        >
+
+        <!-- User name -->
+        <TextView
+            android:id="@+id/txt_user_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/black"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            tools:text="Ella Morgan" />
+
+        <!-- Comment text -->
+        <TextView
+            android:id="@+id/txt_comment_content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/txt_user_name"
+            android:layout_marginTop="4dp"
+            android:textColor="@color/black"
+            android:textSize="14sp"
+            tools:text="Madam, 10 minutes earlier? Are we attending a lab or checking in for an international flight? 😂 Should we also bring our passports and boarding passes? But don't worry, I'll be there—sharp, early, and seated right by my roll number like it's my destiny. Just don't forget to bring snacks for the early birds!" />
+    </RelativeLayout>
+
+</RelativeLayout>

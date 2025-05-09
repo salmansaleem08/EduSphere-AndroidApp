@@ -1,6 +1,7 @@
 package com.salmansaleem.edusphere
 
 import android.content.Context
+import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
@@ -16,6 +17,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 import java.text.SimpleDateFormat
 import java.util.*
+
+
 
 class ClassPage : AppCompatActivity() {
     private lateinit var auth: FirebaseAuth
@@ -61,7 +64,7 @@ class ClassPage : AppCompatActivity() {
         }
 
         // Setup RecyclerView
-        announcementAdapter = AnnouncementAdapter(announcements)
+        announcementAdapter = AnnouncementAdapter(announcements){}
         announcementRecyclerView.layoutManager = LinearLayoutManager(this)
         announcementRecyclerView.adapter = announcementAdapter
 
@@ -83,6 +86,22 @@ class ClassPage : AppCompatActivity() {
         backButton.setOnClickListener {
             finish()
         }
+
+
+        announcementAdapter = AnnouncementAdapter(announcements) { announcement ->
+            val intent = Intent(this, AnnouncementPage::class.java).apply {
+                putExtra("announcement_id",announcement.announcementId)
+                putExtra("classroom_id", announcement.classroomId)
+                putExtra("classroom_name", titleTextView.text.toString())
+                putExtra("teacher_name", announcement.name)
+                putExtra("announcement_text", announcement.text)
+                putExtra("timestamp", announcement.timestamp)
+            }
+            startActivity(intent)
+        }
+        announcementRecyclerView.layoutManager = LinearLayoutManager(this)
+        announcementRecyclerView.adapter = announcementAdapter
+
     }
 
     private fun isOnline(): Boolean {

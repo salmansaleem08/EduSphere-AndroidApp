@@ -6,7 +6,9 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
-class AnnouncementAdapter(private val announcements: List<Announcement>) :
+class AnnouncementAdapter(private val announcements: List<Announcement>,
+                          private val onAnnouncementClick: (Announcement) -> Unit
+     ) :
     RecyclerView.Adapter<AnnouncementAdapter.AnnouncementViewHolder>() {
 
     class AnnouncementViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -26,6 +28,10 @@ class AnnouncementAdapter(private val announcements: List<Announcement>) :
         holder.nameTextView.text = announcement.name
         holder.timeTextView.text = announcement.timestamp
         holder.announcementTextView.text = announcement.text
+        // Set click listener on the item view
+        holder.itemView.setOnClickListener {
+            onAnnouncementClick(announcement)
+        }
     }
 
     override fun getItemCount(): Int = announcements.size
