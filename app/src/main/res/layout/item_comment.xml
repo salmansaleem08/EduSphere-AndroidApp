@@ -8,14 +8,23 @@
     android:paddingStart="16dp"
     android:paddingEnd="16dp">
 
-
+    <!-- Profile Image -->
+    <de.hdodenhof.circleimageview.CircleImageView
+        android:id="@+id/img_user_profile"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_alignParentStart="true"
+        android:layout_marginEnd="12dp"
+        android:layout_marginTop="4dp"
+        android:scaleType="centerCrop"
+        android:contentDescription="User Profile Image" />
 
     <!-- Comment content container -->
     <RelativeLayout
         android:id="@+id/comment_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        >
+        android:layout_toEndOf="@id/img_user_profile">
 
         <!-- User name -->
         <TextView

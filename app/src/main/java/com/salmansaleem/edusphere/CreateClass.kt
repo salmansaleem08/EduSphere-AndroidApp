@@ -136,6 +136,22 @@ class CreateClass : AppCompatActivity() {
 
 
 
+//    private val imagePicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+//        if (result.resultCode == RESULT_OK) {
+//            result.data?.data?.let { uri ->
+//                contentResolver.openInputStream(uri)?.use { inputStream ->
+//                    selectedBitmap = BitmapFactory.decodeStream(inputStream)
+//                    selectedBitmap?.let {
+//                        classRoomImageView.setImageBitmap(it)
+//                        // Save image locally for offline use
+//                        localImagePath = saveImageLocally(it, UUID.randomUUID().toString())
+//                    }
+//                }
+//            }
+//        }
+//    }
+
+
     private val imagePicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
             result.data?.data?.let { uri ->
@@ -143,14 +159,13 @@ class CreateClass : AppCompatActivity() {
                     selectedBitmap = BitmapFactory.decodeStream(inputStream)
                     selectedBitmap?.let {
                         classRoomImageView.setImageBitmap(it)
-                        // Save image locally for offline use
-                        localImagePath = saveImageLocally(it, UUID.randomUUID().toString())
+                        // Save with a temporary name
+                        localImagePath = saveImageLocally(it, "temp_classroom")
                     }
                 }
             }
         }
     }
-
 
 
 
@@ -220,6 +235,80 @@ class CreateClass : AppCompatActivity() {
         }
     }
 
+//    private fun createClassroom(
+//        classroomId: String,
+//        uid: String,
+//        name: String,
+//        section: String,
+//        room: String,
+//        subject: String,
+//        classCode: String,
+//        instructorName: String
+//    ) {
+//        val createButton = findViewById<Button>(R.id.btn_create)
+//        createButton.isEnabled = false
+//
+//
+//        // Save selected image locally (for both online and offline cases)
+//        if (selectedBitmap != null && localImagePath == null) {
+//            localImagePath = saveImageLocally(selectedBitmap!!, classroomId)
+//        }
+//
+//        // Update SQLite with local image path as fallback
+//        // In createClassroom function, after successful image upload
+//        databaseHelper.insertClassroom(classroomId, uid, name, section, room, subject, classCode, localImagePath, instructorName)
+//
+//
+////        databaseHelper.insertClassroom(
+////            classroomId, uid, name, section, room, subject, classCode, null, instructorName
+////        )
+//        // Fetch image to ensure it’s saved locally
+//       // fetchClassroomImage(classroomId, name, instructorName, uid, section, room, subject, classCode, null)
+//
+//
+//        if (isOnline()) {
+//            // Update Firebase
+//            val classroomData = mapOf(
+//                "name" to name,
+//                "section" to section,
+//                "room" to room,
+//                "subject" to subject,
+//                "class_code" to classCode,
+//                "uid" to uid,
+//                "instructor_name" to instructorName
+//            )
+//            database.child(classroomId).setValue(classroomData)
+//                .addOnCompleteListener { task ->
+//                    if (!task.isSuccessful) {
+//                        Log.e(TAG, "Firebase create error: ${task.exception?.message}")
+//                        Toast.makeText(this, "Database error: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
+//                        // Queue for sync
+//                        databaseHelper.queueClassroomUpdate(classroomId, uid, name, section, room, subject, classCode, localImagePath, instructorName)
+//                    }
+//                }
+//
+//            // Upload image if selected
+//            if (selectedBitmap != null) {
+//                uploadImageToServer(classroomId, selectedBitmap!!, name, section, room, subject, classCode, uid, instructorName)
+//            } else {
+//                Toast.makeText(this, "Classroom created successfully", Toast.LENGTH_SHORT).show()
+//                createButton.isEnabled = true
+//                finish()
+//            }
+//        } else {
+//
+//            databaseHelper.insertClassroom(classroomId, uid, name, section, room, subject, classCode, localImagePath, instructorName)
+//
+//            // Queue for sync when online
+//
+//            databaseHelper.queueClassroomUpdate(classroomId, uid, name, section, room, subject, classCode, localImagePath, instructorName)
+//            Toast.makeText(this, "Classroom created locally, will sync when online", Toast.LENGTH_SHORT).show()
+//            createButton.isEnabled = true
+//            finish()
+//        }
+//    }
+//
+
     private fun createClassroom(
         classroomId: String,
         uid: String,
@@ -233,26 +322,26 @@ class CreateClass : AppCompatActivity() {
         val createButton = findViewById<Button>(R.id.btn_create)
         createButton.isEnabled = false
 
-
-        // Save selected image locally (for both online and offline cases)
-        if (selectedBitmap != null && localImagePath == null) {
-            localImagePath = saveImageLocally(selectedBitmap!!, classroomId)
+        // Handle image renaming
+        if (selectedBitmap != null) {
+            if (localImagePath != null && localImagePath!!.contains("temp_classroom")) {
+                val tempFile = File(localImagePath)
+                val newFile = File(filesDir, "${classroomId}_classroom.png")
+                if (tempFile.exists()) {
+                    tempFile.renameTo(newFile)
+                    localImagePath = newFile.absolutePath
+                } else {
+                    localImagePath = saveImageLocally(selectedBitmap!!, classroomId)
+                }
+            } else {
+                localImagePath = saveImageLocally(selectedBitmap!!, classroomId)
+            }
         }
 
-        // Update SQLite with local image path as fallback
-        // In createClassroom function, after successful image upload
+        // Save to SQLite with local path
         databaseHelper.insertClassroom(classroomId, uid, name, section, room, subject, classCode, localImagePath, instructorName)
 
-
-//        databaseHelper.insertClassroom(
-//            classroomId, uid, name, section, room, subject, classCode, null, instructorName
-//        )
-        // Fetch image to ensure it’s saved locally
-       // fetchClassroomImage(classroomId, name, instructorName, uid, section, room, subject, classCode, null)
-
-
         if (isOnline()) {
-            // Update Firebase
             val classroomData = mapOf(
                 "name" to name,
                 "section" to section,
@@ -265,14 +354,10 @@ class CreateClass : AppCompatActivity() {
             database.child(classroomId).setValue(classroomData)
                 .addOnCompleteListener { task ->
                     if (!task.isSuccessful) {
-                        Log.e(TAG, "Firebase create error: ${task.exception?.message}")
-                        Toast.makeText(this, "Database error: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
-                        // Queue for sync
                         databaseHelper.queueClassroomUpdate(classroomId, uid, name, section, room, subject, classCode, localImagePath, instructorName)
                     }
                 }
 
-            // Upload image if selected
             if (selectedBitmap != null) {
                 uploadImageToServer(classroomId, selectedBitmap!!, name, section, room, subject, classCode, uid, instructorName)
             } else {
@@ -281,11 +366,6 @@ class CreateClass : AppCompatActivity() {
                 finish()
             }
         } else {
-
-            databaseHelper.insertClassroom(classroomId, uid, name, section, room, subject, classCode, localImagePath, instructorName)
-
-            // Queue for sync when online
-
             databaseHelper.queueClassroomUpdate(classroomId, uid, name, section, room, subject, classCode, localImagePath, instructorName)
             Toast.makeText(this, "Classroom created locally, will sync when online", Toast.LENGTH_SHORT).show()
             createButton.isEnabled = true
@@ -293,6 +373,54 @@ class CreateClass : AppCompatActivity() {
         }
     }
 
+//    private fun uploadImageToServer(
+//        classroomId: String,
+//        bitmap: Bitmap,
+//        name: String,
+//        section: String,
+//        room: String,
+//        subject: String,
+//        classCode: String,
+//        uid: String,
+//        instructorName: String
+//    ) {
+//        val stream = ByteArrayOutputStream()
+//        bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+//        val byteArray = stream.toByteArray()
+//        val imagePart = MultipartBody.Part.createFormData(
+//            "image",
+//            "${classroomId}_classroom.png",
+//            RequestBody.create("image/png".toMediaType(), byteArray)
+//        )
+//        val classroomIdPart = RequestBody.create("text/plain".toMediaType(), classroomId)
+//
+//        apiService.uploadClassroomImage(classroomIdPart, imagePart).enqueue(object : Callback<ClassroomImageResponse> {
+//            override fun onResponse(call: Call<ClassroomImageResponse>, response: Response<ClassroomImageResponse>) {
+//                if (response.isSuccessful && response.body()?.success == true) {
+//                    Log.d(TAG, "Image uploaded successfully")
+//                    // Save the uploaded image locally
+//                    localImagePath = saveImageLocally(selectedBitmap!!, classroomId)
+//                    databaseHelper.insertClassroom(classroomId, uid, name, section, room, subject, classCode, localImagePath, instructorName)
+//                    Toast.makeText(this@CreateClass, "Classroom created successfully", Toast.LENGTH_SHORT).show()
+//                    finish()
+//                } else {
+//                    Log.e(TAG, "Image upload failed: ${response.code()} ${response.message()}")
+//                    databaseHelper.queueClassroomUpdate(classroomId, uid, name, section, room, subject, classCode, localImagePath, instructorName)
+//                    Toast.makeText(this@CreateClass, "Image upload failed, queued for sync", Toast.LENGTH_SHORT).show()
+//                    finish()
+//                }
+//                findViewById<Button>(R.id.btn_create).isEnabled = true
+//            }
+//
+//            override fun onFailure(call: Call<ClassroomImageResponse>, t: Throwable) {
+//                Log.e(TAG, "Network error uploading image: ${t.message}", t)
+//                databaseHelper.queueClassroomUpdate(classroomId, uid, name, section, room, subject, classCode, localImagePath, instructorName)
+//                Toast.makeText(this@CreateClass, "Network error, classroom saved locally and queued for sync", Toast.LENGTH_SHORT).show()
+//                finish()
+//                findViewById<Button>(R.id.btn_create).isEnabled = true
+//            }
+//        })
+//    }
 
 
     private fun uploadImageToServer(
@@ -320,9 +448,6 @@ class CreateClass : AppCompatActivity() {
             override fun onResponse(call: Call<ClassroomImageResponse>, response: Response<ClassroomImageResponse>) {
                 if (response.isSuccessful && response.body()?.success == true) {
                     Log.d(TAG, "Image uploaded successfully")
-                    // Save the uploaded image locally
-                    localImagePath = saveImageLocally(selectedBitmap!!, classroomId)
-                    databaseHelper.insertClassroom(classroomId, uid, name, section, room, subject, classCode, localImagePath, instructorName)
                     Toast.makeText(this@CreateClass, "Classroom created successfully", Toast.LENGTH_SHORT).show()
                     finish()
                 } else {
@@ -343,6 +468,7 @@ class CreateClass : AppCompatActivity() {
             }
         })
     }
+
 
     private fun scheduleSyncWorker() {
         val constraints = Constraints.Builder()

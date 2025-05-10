@@ -7,29 +7,43 @@
     android:padding="20dp"
     android:background="#FFFFFF">
 
+    <!-- Profile Image -->
+    <de.hdodenhof.circleimageview.CircleImageView
+        android:id="@+id/img_profile"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:contentDescription="Profile Image"
+        android:layout_marginEnd="12dp"
+        android:scaleType="centerCrop"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
     <!-- Teacher Name -->
     <TextView
         android:id="@+id/txt_teacher_name"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="Sabrina Carpenter"
         android:textColor="@color/black"
         android:textSize="16sp"
         android:textStyle="bold"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        android:layout_marginLeft="5dp"
+        app:layout_constraintTop_toTopOf="@id/img_profile"
+        app:layout_constraintStart_toEndOf="@id/img_profile"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- Class Name -->
     <TextView
         android:id="@+id/Classname"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:text="classname"
         android:textColor="#888888"
         android:textSize="14sp"
+        android:layout_marginTop="2dp"
         app:layout_constraintTop_toBottomOf="@id/txt_teacher_name"
-        app:layout_constraintStart_toStartOf="parent"
-        android:layout_marginTop="2dp" />
+        app:layout_constraintStart_toStartOf="@id/txt_teacher_name"
+        app:layout_constraintEnd_toEndOf="@id/txt_teacher_name" />
 
     <!-- Post Content -->
     <TextView
@@ -39,10 +53,10 @@
         android:text="Dear students,\nTomorrow we will have regular lab..."
         android:textColor="@color/black"
         android:textSize="15sp"
+        android:layout_marginTop="16dp"
         app:layout_constraintTop_toBottomOf="@id/Classname"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="16dp" />
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- Post Time -->
     <TextView
@@ -52,9 +66,9 @@
         android:text="04:38 pm · 09 Nov 23"
         android:textColor="#888888"
         android:textSize="12sp"
+        android:layout_marginTop="8dp"
         app:layout_constraintTop_toBottomOf="@id/txt_post_content"
-        app:layout_constraintStart_toStartOf="parent"
-        android:layout_marginTop="8dp" />
+        app:layout_constraintStart_toStartOf="parent" />
 
     <!-- Divider -->
     <View
@@ -62,10 +76,10 @@
         android:layout_width="0dp"
         android:layout_height="1dp"
         android:background="#EEEEEE"
+        android:layout_marginTop="16dp"
         app:layout_constraintTop_toBottomOf="@id/txt_post_time"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="16dp" />
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- Announce / Comment Input Box -->
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -74,10 +88,10 @@
         android:layout_height="wrap_content"
         android:background="@drawable/rounded_card_bg"
         android:padding="8dp"
+        android:layout_marginTop="16dp"
         app:layout_constraintTop_toBottomOf="@id/divider"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="16dp">
+        app:layout_constraintEnd_toEndOf="parent">
 
         <EditText
             android:id="@+id/comment"
@@ -112,10 +126,10 @@
         android:layout_height="0dp"
         android:clipToPadding="false"
         android:overScrollMode="never"
+        android:layout_marginTop="16dp"
         app:layout_constraintTop_toBottomOf="@id/announce_container"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="16dp" />
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

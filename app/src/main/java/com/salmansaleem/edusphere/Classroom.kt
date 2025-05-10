@@ -13,7 +13,8 @@ data class Announcement(
     val uid: String,
     val name: String,
     val text: String,
-    val timestamp: String
+    val timestamp: String,
+    val profileImagePath: String? = null // Add this field
 )
 data class Comment(
     val commentId: String,
@@ -22,7 +23,8 @@ data class Comment(
     val uid: String,
     val name: String,
     val text: String,
-    val timestamp: String
+    val timestamp: String,
+    val profileImagePath: String? = null // Add profileImagePath
 )
 
 data class Person(

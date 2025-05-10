@@ -13,10 +13,7 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.auth.FirebaseAuth
@@ -31,6 +28,14 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import java.io.File
 import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.*
+import android.graphics.Typeface
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.net.URL
 import java.util.concurrent.TimeUnit
 
 class Home : AppCompatActivity() {
@@ -43,9 +48,19 @@ class Home : AppCompatActivity() {
     private lateinit var classRecyclerView: RecyclerView
     private val classrooms = mutableListOf<Classroom>()
 
+
+    private lateinit var tasksAdapter: TasksAdapter
+    private lateinit var filterCompleted: TextView
+    private lateinit var filterToday: TextView
+    private lateinit var filterUpcoming: TextView
+    private lateinit var filterMissing: TextView
+    private var currentFilter = "Completed"
+    private val dateFormat = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
+    private val displayDateFormat = SimpleDateFormat("dd-MMM-yy HH:mm", Locale.getDefault())
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setContentView(R.layout.activity_home)
 
         // Initialize Firebase and SQLite
@@ -68,18 +83,38 @@ class Home : AppCompatActivity() {
             .build()
         apiService = retrofit.create(ApiService::class.java)
 
-
-
         // UI Elements
         val settingsIcon = findViewById<ImageView>(R.id.iv_settings)
         val addClassButton = findViewById<ImageButton>(R.id.btn_add_class)
         val userProfileImage = findViewById<ImageView>(R.id.iv_user_profile)
         val greetingText = findViewById<TextView>(R.id.tv_greeting)
         classRecyclerView = findViewById<RecyclerView>(R.id.rv_my_classes)
+        val recyclerViewTasks = findViewById<RecyclerView>(R.id.rv_tasks)
+        filterCompleted = findViewById<TextView>(R.id.text1)
+        filterToday = findViewById<TextView>(R.id.text2)
+        filterUpcoming = findViewById<TextView>(R.id.text3)
+        filterMissing = findViewById<TextView>(R.id.text4)
 
-        // Setup RecyclerView
+        // Setup Class RecyclerView
         classRecyclerView.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
-        classRecyclerView.adapter = ClassAdapter(classrooms){}
+        classRecyclerView.adapter = ClassAdapter(classrooms) { classroom ->
+            val intent = Intent(this, ClassPage::class.java).apply {
+                putExtra("classroom_id", classroom.classroomId)
+                putExtra("classroom_name", classroom.name)
+            }
+            startActivity(intent)
+        }
+
+        // Setup Tasks RecyclerView
+        tasksAdapter = TasksAdapter(mutableListOf())
+        recyclerViewTasks.layoutManager = LinearLayoutManager(this)
+        recyclerViewTasks.adapter = tasksAdapter
+
+        // Set filter listeners
+        filterCompleted.setOnClickListener { setFilter("Completed") }
+        filterToday.setOnClickListener { setFilter("Today") }
+        filterUpcoming.setOnClickListener { setFilter("Upcoming") }
+        filterMissing.setOnClickListener { setFilter("Missing") }
 
         // Check authentication
         val currentUser = auth.currentUser
@@ -104,18 +139,10 @@ class Home : AppCompatActivity() {
             showClassOptionsDialog(uid)
         }
 
-
-        // Setup RecyclerView
-        classRecyclerView.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
-        classRecyclerView.adapter = ClassAdapter(classrooms) { classroom ->
-            val intent = Intent(this, ClassPage::class.java).apply {
-                putExtra("classroom_id", classroom.classroomId)
-                putExtra("classroom_name", classroom.name)
-            }
-            startActivity(intent)
-        }
-
+        // Initialize tasks with default filter
+        setFilter("Completed")
     }
+
 
     private fun isOnline(): Boolean {
         val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -193,7 +220,7 @@ class Home : AppCompatActivity() {
                             .error(R.drawable.user_profile_placeholder)
                             .into(profileImageView)
                         // Update SQLite with image_url
-                       // databaseHelper.updateUserProfileImageUrl(uid, url)
+                        // databaseHelper.updateUserProfileImageUrl(uid, url)
                     } ?: run {
                         Log.w(TAG, "No profile image URL in response")
                         loadLocalProfileImage(uid, profileImageView)
@@ -239,126 +266,6 @@ class Home : AppCompatActivity() {
         }
     }
 
-//    private fun loadClassrooms(uid: String) {
-//        classrooms.clear()
-//        if (isOnline()) {
-//            database.orderByChild("uid").equalTo(uid).addListenerForSingleValueEvent(object : ValueEventListener {
-//                override fun onDataChange(snapshot: DataSnapshot) {
-//                    var hasData = false
-//                    for (classSnapshot in snapshot.children) {
-//                        hasData = true
-//                        val classroomId = classSnapshot.key ?: continue
-//                        val name = classSnapshot.child("name").getValue(String::class.java) ?: ""
-//                        val section = classSnapshot.child("section").getValue(String::class.java) ?: ""
-//                        val room = classSnapshot.child("room").getValue(String::class.java) ?: ""
-//                        val subject = classSnapshot.child("subject").getValue(String::class.java) ?: ""
-//                        val classCode = classSnapshot.child("class_code").getValue(String::class.java) ?: ""
-//                        val instructorName = classSnapshot.child("instructor_name").getValue(String::class.java) ?: ""
-//
-//                        // Check if classroom is in sync queue
-//                        val isQueued = databaseHelper.readableDatabase.query(
-//                            DatabaseHelper.TABLE_CLASSROOM_UPDATES,
-//                            arrayOf(DatabaseHelper.COLUMN_CLASSROOM_ID),
-//                            "${DatabaseHelper.COLUMN_CLASSROOM_ID} = ?",
-//                            arrayOf(classroomId),
-//                            null, null, null
-//                        ).use { it.moveToFirst() }
-//
-//                        if (!isQueued) {
-//                            // Get image URL from SQLite
-//                            val classroomData = databaseHelper.getClassroom(classroomId)
-//                            val imageUrl = classroomData?.get("image_url")
-//                            databaseHelper.insertClassroom(
-//                                classroomId, uid, name, section, room, subject, classCode, imageUrl, instructorName
-//                            )
-//                            fetchClassroomImage(classroomId, name, instructorName, uid, section, room, subject, classCode, imageUrl)
-//                        } else {
-//                            loadLocalClassroom(classroomId)
-//                        }
-//                    }
-//                    if (!hasData) {
-//                        loadLocalClassrooms(uid)
-//                    }
-//                }
-//
-//                override fun onCancelled(error: DatabaseError) {
-//                    Log.e(TAG, "Firebase database error: ${error.message}")
-//                    loadLocalClassrooms(uid)
-//                }
-//            })
-//        } else {
-//            loadLocalClassrooms(uid)
-//        }
-//    }
-
-
-
-
-
-
-
-
-
-//    private fun fetchClassroomImage(
-//        classroomId: String,
-//        name: String,
-//        instructorName: String,
-//        uid: String,
-//        section: String,
-//        room: String,
-//        subject: String,
-//        classCode: String,
-//        existingImageUrl: String?
-//    ) {
-//        val request = FetchClassroomImageRequest(classroomId)
-//        apiService.fetchClassroomImage(request).enqueue(object : Callback<ClassroomImageResponse> {
-//            override fun onResponse(call: Call<ClassroomImageResponse>, response: Response<ClassroomImageResponse>) {
-//                var localImagePath = existingImageUrl
-//                if (response.isSuccessful && response.body()?.success == true) {
-//                    response.body()?.image_url?.let { url ->
-//                        try {
-//                            val bitmap = BitmapFactory.decodeStream(java.net.URL(url).openStream())
-//                            localImagePath = saveImageLocally(bitmap, classroomId)
-//                            Log.d(TAG, "Saved classroom image locally for $classroomId: $localImagePath")
-//                        } catch (e: Exception) {
-//                            Log.e(TAG, "Error saving image locally: ${e.message}")
-//                        }
-//                    }
-//                } else {
-//                    Log.e(TAG, "Fetch classroom image failed for $classroomId: ${response.code()} ${response.message()}")
-//                }
-//
-//                // Update SQLite with local path
-//                databaseHelper.insertClassroom(
-//                    classroomId, uid, name, section, room, subject, classCode, localImagePath, instructorName
-//                )
-//                Log.d(TAG, "Updated SQLite for $classroomId with localImagePath: $localImagePath")
-//
-//                // Add to classrooms list
-//                val classroom = Classroom(classroomId, name, instructorName, localImagePath)
-//                if (!classrooms.any { it.classroomId == classroomId }) {
-//                    classrooms.add(classroom)
-//                    classRecyclerView.adapter?.notifyDataSetChanged()
-//                    Log.d(TAG, "Added classroom $classroomId to list with localImagePath: $localImagePath")
-//                }
-//            }
-//
-//            override fun onFailure(call: Call<ClassroomImageResponse>, t: Throwable) {
-//                Log.e(TAG, "Network error fetching classroom image for $classroomId: ${t.message}", t)
-//                // Use existing local path
-//                databaseHelper.insertClassroom(
-//                    classroomId, uid, name, section, room, subject, classCode, existingImageUrl, instructorName
-//                )
-//                val classroom = Classroom(classroomId, name, instructorName, existingImageUrl)
-//                if (!classrooms.any { it.classroomId == classroomId }) {
-//                    classrooms.add(classroom)
-//                    classRecyclerView.adapter?.notifyDataSetChanged()
-//                    Log.d(TAG, "Added classroom $classroomId to list with existing localImagePath: $existingImageUrl")
-//                }
-//            }
-//        })
-//    }
-
 
 
 
@@ -395,28 +302,6 @@ class Home : AppCompatActivity() {
             Log.w(TAG, "No local data found for classroom $classroomId")
         }
     }
-
-//    private fun loadLocalClassrooms(uid: String) {
-//        val localClassrooms = databaseHelper.getAllClassroomsForUser(uid)
-//        for (classroomData in localClassrooms) {
-//            val classroomId = classroomData["classroom_id"] ?: continue
-//            val imageUrl = classroomData["image_url"]
-//            val classroom = Classroom(
-//                classroomId,
-//                classroomData["name"] ?: "",
-//                classroomData["instructor_name"] ?: "",
-//                imageUrl
-//            )
-//            if (!classrooms.any { it.classroomId == classroomId }) {
-//                Log.d(TAG, "Loaded local classroom $classroomId with image URL: $imageUrl")
-//                classrooms.add(classroom)
-//            }
-//        }
-//        classRecyclerView.adapter?.notifyDataSetChanged()
-//        if (classrooms.isEmpty()) {
-//            Log.d(TAG, "No local classrooms found for uid $uid")
-//        }
-//    }
 
 
 
@@ -541,7 +426,7 @@ class Home : AppCompatActivity() {
                         // Fetch image to ensure it’s saved locally
                         fetchClassroomImage(classroomId, name, instructorName, uid, section, room, subject, classCode, null)
 
-
+                        //Toast.makeText(this@Home, "Classroom $name loaded", Toast.LENGTH_SHORT).show()
                     }
                     // Step 2: Fetch classrooms the user has joined
                     FirebaseDatabase.getInstance().getReference("Classes")
@@ -601,17 +486,21 @@ class Home : AppCompatActivity() {
     }
 
 
+
+
     private fun loadLocalClassrooms(uid: String) {
-        val classroomIds = databaseHelper.getUserClassrooms(uid) // Get classrooms user is a member of
+        val classroomIds = databaseHelper.getUserClassrooms(uid)
         for (classroomId in classroomIds) {
             val classroomData = databaseHelper.getClassroom(classroomId)
             if (classroomData != null) {
-                val imagePath = classroomData["image_path"] ?: ""
+                val storedImagePath = classroomData["image_path"] ?: ""
+                val localFile = File(storedImagePath)
+                val imagePath = if (localFile.exists()) storedImagePath else null
                 val classroom = Classroom(
                     classroomId,
                     classroomData["name"] ?: "",
                     classroomData["instructor_name"] ?: "",
-                    imagePath // Use local image path
+                    imagePath
                 )
                 if (!classrooms.any { it.classroomId == classroomId }) {
                     Log.d(TAG, "Loaded local classroom $classroomId with image path: $imagePath")
@@ -626,6 +515,11 @@ class Home : AppCompatActivity() {
             Log.d(TAG, "No local classrooms found for uid $uid")
         }
     }
+
+
+
+
+
 
     public fun fetchClassroomImage(
         classroomId: String,
@@ -642,9 +536,7 @@ class Home : AppCompatActivity() {
         val localFile = File(filesDir, "${classroomId}_classroom.png")
         if (localFile.exists()) {
             val localImagePath = localFile.absolutePath
-            databaseHelper.insertClassroom(
-                classroomId, uid, name, section, room, subject, classCode, localImagePath, instructorName
-            )
+            databaseHelper.insertClassroom(classroomId, uid, name, section, room, subject, classCode, localImagePath, instructorName)
             val classroom = Classroom(classroomId, name, instructorName, localImagePath)
             if (!classrooms.any { it.classroomId == classroomId }) {
                 classrooms.add(classroom)
@@ -658,42 +550,65 @@ class Home : AppCompatActivity() {
         val request = FetchClassroomImageRequest(classroomId)
         apiService.fetchClassroomImage(request).enqueue(object : Callback<ClassroomImageResponse> {
             override fun onResponse(call: Call<ClassroomImageResponse>, response: Response<ClassroomImageResponse>) {
-                var localImagePath = existingImagePath
+                var localImagePath: String? = existingImagePath
                 if (response.isSuccessful && response.body()?.success == true) {
                     response.body()?.image_url?.let { url ->
-                        try {
-                            val bitmap = BitmapFactory.decodeStream(java.net.URL(url).openStream())
-                            localImagePath = saveImageLocally(bitmap, classroomId)
-                            Log.d(TAG, "Saved classroom image locally for $classroomId: $localImagePath")
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error saving image locally: ${e.message}")
+                        // Download image in background thread using coroutines
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            try {
+                                val bitmap = BitmapFactory.decodeStream(URL(url).openStream())
+                                localImagePath = saveImageLocally(bitmap, classroomId)
+                                // Switch to main thread to update UI and database
+                                withContext(Dispatchers.Main) {
+                                    Log.d(TAG, "Saved classroom image locally for $classroomId: $localImagePath")
+                                    databaseHelper.insertClassroom(classroomId, uid, name, section, room, subject, classCode, localImagePath, instructorName)
+                                    val classroom = Classroom(classroomId, name, instructorName, localImagePath)
+                                    if (!classrooms.any { it.classroomId == classroomId }) {
+                                        classrooms.add(classroom)
+                                        classRecyclerView.adapter?.notifyDataSetChanged()
+                                        Log.d(TAG, "Added classroom $classroomId to list with localImagePath: $localImagePath")
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                // Handle errors on main thread
+                                withContext(Dispatchers.Main) {
+                                    Log.e(TAG, "Error saving image locally for $classroomId: ${e.message}", e)
+                                    databaseHelper.insertClassroom(classroomId, uid, name, section, room, subject, classCode, null, instructorName)
+                                    val classroom = Classroom(classroomId, name, instructorName, null)
+                                    if (!classrooms.any { it.classroomId == classroomId }) {
+                                        classrooms.add(classroom)
+                                        classRecyclerView.adapter?.notifyDataSetChanged()
+                                        Log.d(TAG, "Added classroom $classroomId to list without image")
+                                    }
+                                }
+                            }
+                        }
+                    } ?: run {
+                        // No image URL provided
+                        Log.w(TAG, "No image URL for classroom $classroomId")
+                        databaseHelper.insertClassroom(classroomId, uid, name, section, room, subject, classCode, null, instructorName)
+                        val classroom = Classroom(classroomId, name, instructorName, null)
+                        if (!classrooms.any { it.classroomId == classroomId }) {
+                            classrooms.add(classroom)
+                            classRecyclerView.adapter?.notifyDataSetChanged()
+                            Log.d(TAG, "Added classroom $classroomId to list without image")
                         }
                     }
                 } else {
                     Log.e(TAG, "Fetch classroom image failed for $classroomId: ${response.code()} ${response.message()}")
-                }
-
-                // Update SQLite with local path
-                databaseHelper.insertClassroom(
-                    classroomId, uid, name, section, room, subject, classCode, localImagePath, instructorName
-                )
-                Log.d(TAG, "Updated SQLite for $classroomId with localImagePath: $localImagePath")
-
-                // Add to classrooms list
-                val classroom = Classroom(classroomId, name, instructorName, localImagePath)
-                if (!classrooms.any { it.classroomId == classroomId }) {
-                    classrooms.add(classroom)
-                    classRecyclerView.adapter?.notifyDataSetChanged()
-                    Log.d(TAG, "Added classroom $classroomId to list with localImagePath: $localImagePath")
+                    databaseHelper.insertClassroom(classroomId, uid, name, section, room, subject, classCode, existingImagePath, instructorName)
+                    val classroom = Classroom(classroomId, name, instructorName, existingImagePath)
+                    if (!classrooms.any { it.classroomId == classroomId }) {
+                        classrooms.add(classroom)
+                        classRecyclerView.adapter?.notifyDataSetChanged()
+                        Log.d(TAG, "Added classroom $classroomId to list with existing localImagePath: $existingImagePath")
+                    }
                 }
             }
 
             override fun onFailure(call: Call<ClassroomImageResponse>, t: Throwable) {
                 Log.e(TAG, "Network error fetching classroom image for $classroomId: ${t.message}", t)
-                // Use existing local path or null
-                databaseHelper.insertClassroom(
-                    classroomId, uid, name, section, room, subject, classCode, existingImagePath, instructorName
-                )
+                databaseHelper.insertClassroom(classroomId, uid, name, section, room, subject, classCode, existingImagePath, instructorName)
                 val classroom = Classroom(classroomId, name, instructorName, existingImagePath)
                 if (!classrooms.any { it.classroomId == classroomId }) {
                     classrooms.add(classroom)
@@ -702,5 +617,206 @@ class Home : AppCompatActivity() {
                 }
             }
         })
+    }
+
+    private fun isSameDay(date1: Date, date2: Date): Boolean {
+        val cal1 = Calendar.getInstance().apply { time = date1 }
+        val cal2 = Calendar.getInstance().apply { time = date2 }
+        return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+                cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+    }
+
+    private fun filterAndUpdateTasks(assignments: List<Map<String, String>>) {
+        val filteredTasks = assignments.filter { assignment ->
+            val dueDateStr = assignment["due_date"] ?: return@filter false
+            val submissionId = assignment["submission_id"] ?: ""
+            val dueDate = try {
+                dateFormat.parse(dueDateStr)
+            } catch (e: Exception) {
+                Log.e(TAG, "Invalid due date format: $dueDateStr")
+                return@filter false
+            }
+            val currentTime = Calendar.getInstance().time
+
+            val isSubmitted = submissionId.isNotEmpty()
+            val isToday = isSameDay(dueDate, currentTime)
+            val isBeforeToday = dueDate.before(currentTime) && !isToday
+            val isAfterToday = dueDate.after(currentTime) && !isToday
+
+            when (currentFilter) {
+                "Completed" -> isSubmitted
+                "Today" -> !isSubmitted && isToday
+                "Upcoming" -> !isSubmitted && isAfterToday
+                "Missing" -> !isSubmitted && isBeforeToday
+                else -> false
+            }
+        }.map { assignment ->
+            mapOf(
+                "assignment_id" to assignment["assignment_id"]!!,
+                "classroom_id" to assignment["classroom_id"]!!,
+                "name" to assignment["name"]!!,
+                "due_date" to try {
+                    val parsedDate = dateFormat.parse(assignment["due_date"]!!)
+                    displayDateFormat.format(parsedDate!!)
+                } catch (e: Exception) {
+                    assignment["due_date"]!!
+                }
+            )
+        }
+        tasksAdapter.updateTasks(filteredTasks)
+    }
+
+    private fun getUserClassroomIds(uid: String, callback: (List<String>) -> Unit) {
+        if (isOnline()) {
+            val classroomIds = mutableSetOf<String>()
+            FirebaseDatabase.getInstance().getReference("Classes")
+                .addListenerForSingleValueEvent(object : ValueEventListener {
+                    override fun onDataChange(snapshot: DataSnapshot) {
+                        for (classSnapshot in snapshot.children) {
+                            if (classSnapshot.child("members").child(uid).exists()) {
+                                classroomIds.add(classSnapshot.key ?: "")
+                            }
+                        }
+                        callback(classroomIds.toList())
+                    }
+                    override fun onCancelled(error: DatabaseError) {
+                        Log.e(TAG, "Error fetching member classrooms: ${error.message}")
+                        callback(emptyList())
+                    }
+                })
+        } else {
+            val classroomIds = databaseHelper.getUserClassrooms(uid)
+            callback(classroomIds)
+        }
+    }
+
+
+    private fun loadTasks() {
+        val user = auth.currentUser
+        if (user == null) {
+            Log.e(TAG, "User not authenticated")
+            tasksAdapter.updateTasks(emptyList())
+            return
+        }
+        val userId = user.uid
+
+        getUserClassroomIds(userId) { classroomIds ->
+            if (classroomIds.isEmpty()) {
+                tasksAdapter.updateTasks(emptyList())
+                return@getUserClassroomIds
+            }
+            if (isOnline()) {
+                val allAssignments = mutableListOf<Map<String, String>>()
+                var classroomsProcessed = 0
+                for (classroomId in classroomIds) {
+                    FirebaseDatabase.getInstance().getReference("Assignments").child(classroomId)
+                        .addListenerForSingleValueEvent(object : ValueEventListener {
+                            override fun onDataChange(snapshot: DataSnapshot) {
+                                val assignments = mutableListOf<Map<String, String>>()
+                                for (child in snapshot.children) {
+                                    val assignment = child.value as? Map<String, Any> ?: continue
+                                    assignments.add(
+                                        mapOf(
+                                            "assignment_id" to (child.key ?: ""),
+                                            "classroom_id" to classroomId,
+                                            "uid" to (assignment["uid"]?.toString() ?: ""),
+                                            "name" to (assignment["name"]?.toString() ?: ""),
+                                            "description" to (assignment["description"]?.toString() ?: ""),
+                                            "due_date" to (assignment["due_date"]?.toString() ?: ""),
+                                            "score" to (assignment["score"]?.toString() ?: "0"),
+                                            "submission_id" to ""
+                                        )
+                                    )
+                                }
+                                FirebaseDatabase.getInstance().getReference("Submissions").child(classroomId).child(userId)
+                                    .addListenerForSingleValueEvent(object : ValueEventListener {
+                                        override fun onDataChange(subSnapshot: DataSnapshot) {
+                                            val updatedAssignments = assignments.map { assignment ->
+                                                val assignmentId = assignment["assignment_id"]!!
+                                                val submission = subSnapshot.child(assignmentId).value as? Map<String, Any>
+                                                assignment.toMutableMap().apply {
+                                                    put("submission_id", submission?.get("submission_id")?.toString() ?: "")
+                                                    put("submitted_at", submission?.get("submitted_at")?.toString() ?: "")
+                                                }
+                                            }
+                                            updatedAssignments.forEach { assignment ->
+                                                databaseHelper.insertAssignment(
+                                                    assignment["assignment_id"]!!,
+                                                    assignment["classroom_id"]!!,
+                                                    assignment["uid"]!!,
+                                                    assignment["name"]!!,
+                                                    assignment["description"]!!,
+                                                    assignment["due_date"]!!,
+                                                    assignment["score"]!!.toInt(),
+                                                    null
+                                                )
+                                                if (assignment["submission_id"]?.isNotEmpty() == true) {
+                                                    databaseHelper.insertSubmission(
+                                                        assignment["submission_id"]!!,
+                                                        assignment["assignment_id"]!!,
+                                                        assignment["classroom_id"]!!,
+                                                        userId,
+                                                        assignment["submitted_at"]!!,
+                                                        null
+                                                    )
+                                                }
+                                            }
+                                            allAssignments.addAll(updatedAssignments)
+                                            classroomsProcessed++
+                                            if (classroomsProcessed == classroomIds.size) {
+                                                filterAndUpdateTasks(allAssignments)
+                                            }
+                                        }
+                                        override fun onCancelled(error: DatabaseError) {
+                                            Log.e(TAG, "Firebase submissions fetch error for $classroomId: ${error.message}")
+                                            classroomsProcessed++
+                                            if (classroomsProcessed == classroomIds.size) {
+                                                filterAndUpdateTasks(allAssignments)
+                                            }
+                                        }
+                                    })
+                            }
+                            override fun onCancelled(error: DatabaseError) {
+                                Log.e(TAG, "Firebase assignments fetch error for $classroomId: ${error.message}")
+                                classroomsProcessed++
+                                if (classroomsProcessed == classroomIds.size) {
+                                    filterAndUpdateTasks(allAssignments)
+                                }
+                            }
+                        })
+                }
+            } else {
+                val assignments = databaseHelper.getAllAssignmentsWithStatus(userId, classroomIds)
+                filterAndUpdateTasks(assignments)
+            }
+        }
+    }
+
+    private fun updateFilterUI() {
+        val selectedColor = 0xFF000000.toInt() // Black
+        val unselectedColor = 0xFF999999.toInt() // Light grey
+
+        filterCompleted.apply {
+            setTextColor(if (currentFilter == "Completed") selectedColor else unselectedColor)
+            setTypeface(null, if (currentFilter == "Completed") Typeface.BOLD else Typeface.NORMAL)
+        }
+        filterToday.apply {
+            setTextColor(if (currentFilter == "Today") selectedColor else unselectedColor)
+            setTypeface(null, if (currentFilter == "Today") Typeface.BOLD else Typeface.NORMAL)
+        }
+        filterUpcoming.apply {
+            setTextColor(if (currentFilter == "Upcoming") selectedColor else unselectedColor)
+            setTypeface(null, if (currentFilter == "Upcoming") Typeface.BOLD else Typeface.NORMAL)
+        }
+        filterMissing.apply {
+            setTextColor(if (currentFilter == "Missing") selectedColor else unselectedColor)
+            setTypeface(null, if (currentFilter == "Missing") Typeface.BOLD else Typeface.NORMAL)
+        }
+    }
+
+    private fun setFilter(filter: String) {
+        currentFilter = filter
+        updateFilterUI()
+        loadTasks()
     }
 }

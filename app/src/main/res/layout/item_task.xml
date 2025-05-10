@@ -2,55 +2,49 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/rounded_card_bg"
     android:orientation="horizontal"
-    android:layout_marginTop="5dp"
-    android:layout_marginBottom="5dp"
-    android:padding="8dp">
+    android:padding="12dp"
+    android:layout_marginBottom="8dp"
+    android:background="@drawable/rounded_card_bg"
+    android:elevation="2dp"
+    android:gravity="center_vertical">
 
-    <de.hdodenhof.circleimageview.CircleImageView
-        android:id="@+id/iv_profile"
+    <ImageView
+        android:id="@+id/iv_icon"
         android:layout_width="40dp"
         android:layout_height="40dp"
-        android:layout_gravity="center_vertical"
-        android:src="@drawable/user_profile_placeholder"
-        android:contentDescription="Profile Image" />
+        android:src="@drawable/assignment"
+        android:contentDescription="Task Icon"
+        android:layout_marginEnd="12dp" />
 
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:orientation="horizontal"
-        android:layout_marginStart="12dp"
-        android:layout_gravity="center_vertical">
+        android:orientation="vertical">
 
         <TextView
-            android:id="@+id/tv_name"
+            android:id="@+id/tv_task_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:text="Task Name"
+            android:textColor="#000000"
             android:textSize="16sp"
-            android:text=" Sabrina Carpenter"
-            android:textColor="#333333"
             android:textStyle="bold" />
 
         <TextView
-            android:id="@+id/tv_teacher_label"
+            android:id="@+id/tv_task_time"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="12sp"
-            android:layout_marginLeft="4dp"
-            android:textColor="@color/light_gray"
-            android:visibility="gone"
-             />
-
+            android:text="01-April-24 09:30"
+            android:textColor="#666666"
+            android:textSize="14sp" />
     </LinearLayout>
-
 
     <ImageView
         android:id="@+id/iv_more"
         android:layout_width="24dp"
         android:layout_height="24dp"
-        android:layout_gravity="center_vertical"
         android:src="@drawable/dots"
         android:contentDescription="More Options" />
 </LinearLayout>

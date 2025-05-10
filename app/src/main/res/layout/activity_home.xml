@@ -152,15 +152,17 @@
         android:gravity="center">
 
         <TextView
+            android:id="@+id/text1"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="16dp"
-            android:text="Recently"
+            android:text="Completed"
             android:textColor="#333333"
             android:textSize="16sp"
             android:textStyle="bold" />
 
         <TextView
+            android:id="@+id/text2"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="16dp"
@@ -169,6 +171,7 @@
             android:textSize="16sp" />
 
         <TextView
+            android:id="@+id/text3"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="16dp"
@@ -177,6 +180,7 @@
             android:textSize="16sp" />
 
         <TextView
+            android:id="@+id/text4"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Missing"
@@ -196,81 +200,3 @@
 
 </RelativeLayout>
 
-    <!-- You'll need to create these resources: -->
-    <!--
-    1. user_profile_placeholder.xml or user_profile_placeholder.png: Placeholder image for user profile
-    2. Item layout for My Classes RecyclerView (e.g., item_class.xml):
-    <?xml version="1.0" encoding="utf-8"?>
-    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="8dp"
-        android:background="@drawable/rounded_card_bg">
-        <ImageView
-            android:layout_width="120dp"
-            android:layout_height="80dp"
-            android:src="@drawable/class_placeholder"
-            android:scaleType="centerCrop" />
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Class Title"
-            android:textColor="#333333"
-            android:textSize="16sp" />
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Instructor Name"
-            android:textColor="#666666"
-            android:textSize="14sp" />
-    </LinearLayout>
-
-    3. Item layout for Tasks RecyclerView (e.g., item_task.xml):
-    <?xml version="1.0" encoding="utf-8"?>
-    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="8dp">
-        <ImageView
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:src="@android:drawable/ic_menu_edit"
-            android:contentDescription="Task Icon" />
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="16dp"
-            android:orientation="vertical">
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Task Title"
-                android:textColor="#333333"
-                android:textSize="16sp" />
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Due Date"
-                android:textColor="#666666"
-                android:textSize="14sp" />
-        </LinearLayout>
-        <ImageView
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@android:drawable/ic_menu_more"
-            android:contentDescription="More Options" />
-    </LinearLayout>
-
-    4. rounded_card_bg.xml:
-    <?xml version="1.0" encoding="utf-8"?>
-    <shape xmlns:android="http://schemas.android.com/apk/res/android">
-        <solid android:color="#F0F4F8" />
-        <corners android:radius="8dp" />
-    </shape>
-    -->

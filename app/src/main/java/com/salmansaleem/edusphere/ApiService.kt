@@ -33,6 +33,43 @@ interface ApiService {
     @POST("fetch_classroom_image.php")
     fun fetchClassroomImage(@Body request: FetchClassroomImageRequest): Call<ClassroomImageResponse>
 
+
+
+    @Multipart
+    @POST("upload_assignment_image.php")
+    fun uploadAssignmentImage(
+        @Part("assignment_id") assignmentId: RequestBody,
+        @Part image: MultipartBody.Part
+    ): Call<AssignmentImageResponse>
+
+
+    @POST("fetch_assignment_image.php")
+    fun fetchAssignmentImage(@Body request: FetchAssignmentImageRequest): Call<AssignmentImageResponse>
+
+
+
+    @Multipart
+    @POST("upload_submission_image.php")
+    fun uploadSubmissionImage(
+        @Part("submission_id") submissionId: RequestBody,
+        @Part image: MultipartBody.Part
+    ): Call<SubmissionImageResponse>
+
+//    @POST("fetch_assignment_image.php") // Reusing endpoint with submission_id
+//    fun fetchSubmissionImage(@Body request: FetchSubmissionImageRequest): Call<AssignmentImageResponse>
+
+
+
+//    @Multipart
+//    @POST("upload_submission_image")
+//    fun uploadSubmissionImage(
+//        @Part("submission_id") submissionId: RequestBody,
+//        @Part image: MultipartBody.Part
+//    ): Call<ImageUploadResponse>
+
+
+    @POST("fetch_submission_image.php")
+    fun fetchSubmissionImage(@Body request: FetchSubmissionImageRequest): Call<AssignmentImageResponse>
 }
 
 data class FetchImageRequest(val uid: String)
@@ -50,4 +87,28 @@ data class ClassroomImageResponse(
     val error: String?,
     val image_url: String?,
     val message: String?
+)
+
+
+data class FetchAssignmentImageRequest(val assignment_id: String)
+
+data class AssignmentImageResponse(
+    val success: Boolean,
+    val image_url: String? = null,
+    val error: String? = null,
+    val message: String? = null
+)
+data class FetchSubmissionImageRequest(val submission_id: String)
+
+data class ImageUploadResponse(
+    val success: Boolean,
+    val image_url: String?
+)
+
+
+data class SubmissionImageResponse(
+    val success: Boolean,
+    val image_url: String? = null,
+    val error: String? = null,
+    val message: String? = null
 )

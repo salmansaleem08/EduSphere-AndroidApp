@@ -1,0 +1,365 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:background="#FFFFFF"
+    android:paddingStart="20dp"
+    android:paddingEnd="20dp"
+    android:paddingBottom="40dp"
+    android:fitsSystemWindows="true"
+    android:paddingTop="30dp"
+    tools:context=".AssignmentSubmission">
+
+    <!-- Fixed Header Section -->
+    <RelativeLayout
+        android:id="@+id/header_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#FFFFFF"
+        android:layout_alignParentTop="true">
+
+        <!-- Back Icon -->
+        <ImageView
+            android:id="@+id/iv_back"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:contentDescription="Back"
+            android:src="@drawable/ic_back"
+            app:tint="#333333" />
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:layout_centerVertical="true"
+            android:text="SMD Project App Figma Design"
+            android:textColor="#333333"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <!-- Menu Icon -->
+        <ImageView
+            android:id="@+id/iv_menu"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:contentDescription="Menu"
+            android:src="@drawable/ic_menu"
+            app:tint="#333333" />
+    </RelativeLayout>
+
+    <!-- Scrollable Content -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/header_layout"
+        android:fillViewport="true"
+        android:paddingBottom="40dp">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <!-- Project Details Section -->
+            <TextView
+                android:id="@+id/tv_from"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="15dp"
+                android:text="From"
+                android:textColor="#666666"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_from_value"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tv_from"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/rounded_edit_text_bg"
+                android:text="Muhammad Salman Saleem"
+                android:textColor="#333333"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/tv_due"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tv_from_value"
+                android:layout_marginTop="5dp"
+                android:text="Due"
+                android:textColor="#666666"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_due_value"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tv_due"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/rounded_edit_text_bg"
+                android:text="18 April 21:30"
+                android:textColor="#333333"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/tv_description"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tv_due_value"
+                android:layout_marginTop="5dp"
+                android:text="Description"
+                android:textColor="#666666"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_description_value"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tv_description"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/rounded_edit_text_bg"
+                android:text="Submit the Figma Designs for your project app here."
+                android:textColor="#333333"
+                android:textSize="14sp" />
+
+            <!-- Attachments Section -->
+            <TextView
+                android:id="@+id/tv_attachments"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tv_description_value"
+                android:layout_marginTop="5dp"
+                android:text="Attachments"
+                android:textColor="#666666"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_attachments_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tv_attachments"
+                android:layout_marginTop="8dp"
+                android:text="Files for the project"
+                android:textColor="#888888"
+                android:textSize="12sp" />
+
+            <LinearLayout
+                android:id="@+id/assignment_image_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tv_attachments_subtitle"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal"
+                android:padding="8dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/iv_assignment_image_icon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_link_file"
+                    android:contentDescription="Assignment Image Icon" />
+
+                <TextView
+                    android:id="@+id/tv_assignment_image_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="No image attached"
+                    android:textColor="#333333"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <!-- Black Horizontal Line after Attachments -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="2dp"
+                android:layout_below="@id/assignment_image_container"
+                android:layout_marginTop="8dp"
+                android:background="#000000" />
+
+            <!-- Total Scores Section -->
+            <TextView
+                android:id="@+id/tv_total_scores"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/assignment_image_container"
+                android:layout_marginTop="16dp"
+                android:text="Total Scores"
+                android:textColor="#666666"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_total_scores_value"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tv_total_scores"
+                android:layout_marginTop="8dp"
+                android:text="Scores are not assigned by the teacher yet."
+                android:textColor="#333333"
+                android:textSize="14sp" />
+
+            <!-- Black Horizontal Line after Total Scores -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="2dp"
+                android:layout_below="@id/tv_total_scores_value"
+                android:layout_marginTop="8dp"
+                android:background="#000000" />
+
+            <!-- Attached Files Section -->
+            <TextView
+                android:id="@+id/tv_attached_files"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tv_total_scores_value"
+                android:layout_marginTop="16dp"
+                android:text="Attached Files"
+                android:textColor="#666666"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_attached_files_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tv_attached_files"
+                android:layout_marginTop="8dp"
+                android:text="Files you have uploaded"
+                android:textColor="#888888"
+                android:textSize="12sp" />
+
+            <LinearLayout
+                android:id="@+id/attached_files_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tv_attached_files_subtitle"
+                android:layout_marginTop="8dp"
+                android:orientation="vertical">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_attached_files"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:scrollbars="vertical"
+                    android:nestedScrollingEnabled="false" />
+            </LinearLayout>
+
+            <!-- Black Horizontal Line after Attached Files -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="2dp"
+                android:layout_below="@id/attached_files_container"
+                android:layout_marginTop="8dp"
+                android:background="#000000" />
+
+            <!-- Add More Files Button -->
+            <RelativeLayout
+                android:id="@+id/btn_add_more_files"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/attached_files_container"
+                android:padding="10dp">
+
+                <ImageView
+                    android:id="@+id/iv_add_more_files"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_centerVertical="true"
+                    android:src="@drawable/ic_link_file" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:layout_marginTop="16dp"
+                    android:layout_toEndOf="@+id/iv_add_more_files"
+                    android:text="Add More Files"
+                    android:textColor="#333333"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </RelativeLayout>
+
+            <!-- Submit Button -->
+            <Button
+                android:id="@+id/btn_submit"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_below="@id/btn_add_more_files"
+                android:background="@drawable/rounded_button_bg"
+                android:text="Submit"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <!-- Class Comment Input -->
+            <RelativeLayout
+                android:id="@+id/et_class_comment"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/btn_submit"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/rounded_card_bg"
+                android:padding="16dp">
+
+                <EditText
+                    android:id="@+id/et_announce"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_toStartOf="@+id/iv_send"
+                    android:background="@null"
+                    android:hint="Class comment"
+                    android:textColorHint="#888888"
+                    android:textSize="16sp" />
+
+                <!-- Send Icon -->
+                <ImageView
+                    android:id="@+id/iv_send"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:contentDescription="Send"
+                    android:src="@drawable/ic_send"
+                    app:tint="#888888" />
+            </RelativeLayout>
+
+            <!-- Class Comments Section -->
+            <TextView
+                android:id="@+id/tv_class_comments"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/et_class_comment"
+                android:layout_marginTop="16dp"
+                android:text="Class comments"
+                android:textColor="#666666"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_class_comments"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tv_class_comments"
+                android:layout_marginTop="8dp"
+                android:orientation="vertical"
+                android:scrollbars="vertical"
+                android:nestedScrollingEnabled="false" />
+
+        </RelativeLayout>
+    </ScrollView>
+</RelativeLayout>

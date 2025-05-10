@@ -389,6 +389,239 @@ class SyncWorker(appContext: Context, params: WorkerParameters) : CoroutineWorke
             commentDb.close()
 
 
+
+
+            val assignmentDb = databaseHelper.readableDatabase
+            val assignmentCursor = assignmentDb.query(
+                DatabaseHelper.TABLE_ASSIGNMENT_UPDATES,
+                arrayOf(
+                    DatabaseHelper.COLUMN_ID,
+                    DatabaseHelper.COLUMN_ASSIGNMENT_ID,
+                    DatabaseHelper.COLUMN_CLASSROOM_ID,
+                    DatabaseHelper.COLUMN_UID,
+                    DatabaseHelper.COLUMN_ASSIGNMENT_NAME,
+                    DatabaseHelper.COLUMN_DESCRIPTION,
+                    DatabaseHelper.COLUMN_DUE_DATE,
+                    DatabaseHelper.COLUMN_SCORE,
+                    DatabaseHelper.COLUMN_IMAGE_PATH
+                ),
+                null, null, null, null, null
+            )
+            while (assignmentCursor.moveToNext()) {
+                val id = assignmentCursor.getLong(assignmentCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_ID))
+                val assignmentId = assignmentCursor.getString(assignmentCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_ASSIGNMENT_ID))
+                val classroomId = assignmentCursor.getString(assignmentCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_CLASSROOM_ID))
+                val uid = assignmentCursor.getString(assignmentCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_UID))
+                val name = assignmentCursor.getString(assignmentCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_ASSIGNMENT_NAME)) ?: ""
+                val description = assignmentCursor.getString(assignmentCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_DESCRIPTION)) ?: ""
+                val dueDate = assignmentCursor.getString(assignmentCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_DUE_DATE)) ?: ""
+                val score = assignmentCursor.getInt(assignmentCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_SCORE))
+                val imagePath = assignmentCursor.getString(assignmentCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_IMAGE_PATH))
+                val assignmentData = mapOf(
+                    "uid" to uid,
+                    "name" to name,
+                    "description" to description,
+                    "due_date" to dueDate,
+                    "score" to score,
+                    "timestamp" to java.text.SimpleDateFormat("hh:mm a · dd MMM yy", java.util.Locale.getDefault()).format(java.util.Date())
+                )
+                var firebaseSuccess = false
+                try {
+                    database.getReference("Assignments").child(classroomId).child(assignmentId).setValue(assignmentData).await()
+                    firebaseSuccess = true
+                    Log.d(TAG, "Firebase synced successfully for assignment $assignmentId")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Firebase sync error for assignment $assignmentId: ${e.message}")
+                    allSyncedSuccessfully = false
+                }
+                var imageSuccess = true
+                if (imagePath != null) {
+                    val file = File(imagePath)
+                    if (file.exists()) {
+                        try {
+                            val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+                            val stream = java.io.ByteArrayOutputStream()
+                            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                            val byteArray = stream.toByteArray()
+                            val imagePart = MultipartBody.Part.createFormData(
+                                "image",
+                                "${assignmentId}_ASSIGNMENT_IMAGE.png",
+                                RequestBody.create("image/png".toMediaType(), byteArray)
+                            )
+                            val assignmentIdPart = RequestBody.create("text/plain".toMediaType(), assignmentId)
+                            val response = apiService.uploadAssignmentImage(assignmentIdPart, imagePart).execute()
+                            if (response.isSuccessful && response.body()?.success == true) {
+                                Log.d(TAG, "Synced assignment image for assignment $assignmentId: ${response.body()?.image_url}")
+                                response.body()?.image_url?.let { url ->
+                                    try {
+                                        val bitmapFromServer = BitmapFactory.decodeStream(java.net.URL(url).openStream())
+                                        val fileName = "${assignmentId}_assignment.png"
+                                        val newFile = File(applicationContext.filesDir, fileName)
+                                        FileOutputStream(newFile).use { out ->
+                                            bitmapFromServer.compress(Bitmap.CompressFormat.PNG, 100, out)
+                                        }
+                                        Log.d(TAG, "Saved synced assignment image locally at: ${newFile.absolutePath}")
+                                        databaseHelper.insertAssignment(
+                                            assignmentId, classroomId, uid, name, description, dueDate, score, newFile.absolutePath
+                                        )
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Error saving synced assignment image locally: ${e.message}")
+                                        allSyncedSuccessfully = false
+                                        imageSuccess = false
+                                    }
+                                }
+                            } else {
+                                Log.e(TAG, "Assignment image sync failed for assignment $assignmentId: ${response.code()} ${response.message()}")
+                                allSyncedSuccessfully = false
+                                imageSuccess = false
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error syncing assignment image for assignment $assignmentId: ${e.message}")
+                            allSyncedSuccessfully = false
+                            imageSuccess = false
+                        }
+                    } else {
+                        Log.w(TAG, "Assignment image file does not exist at path: $imagePath")
+                        allSyncedSuccessfully = false
+                        imageSuccess = false
+                    }
+                }
+                if (firebaseSuccess && imageSuccess) {
+                    try {
+                        assignmentDb.delete(
+                            DatabaseHelper.TABLE_ASSIGNMENT_UPDATES,
+                            "${DatabaseHelper.COLUMN_ID} = ?",
+                            arrayOf(id.toString())
+                        )
+                        Log.d(TAG, "Deleted queued assignment update for id $id")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error deleting queued assignment update for id $id: ${e.message}")
+                        allSyncedSuccessfully = false
+                    }
+                }
+            }
+            assignmentCursor.close()
+            assignmentDb.close()
+
+
+
+            val submissionDb = databaseHelper.readableDatabase
+            val submissionCursor = submissionDb.query(
+                DatabaseHelper.TABLE_SUBMISSION_UPDATES,
+                arrayOf(
+                    DatabaseHelper.COLUMN_ID,
+                    DatabaseHelper.COLUMN_SUBMISSION_ID,
+                    DatabaseHelper.COLUMN_ASSIGNMENT_ID,
+                    DatabaseHelper.COLUMN_CLASSROOM_ID,
+                    DatabaseHelper.COLUMN_UID,
+                    DatabaseHelper.COLUMN_SUBMITTED_AT,
+                    DatabaseHelper.COLUMN_SUBMISSION_IMAGE_PATH
+                ),
+                null, null, null, null, null
+            )
+
+            while (submissionCursor.moveToNext()) {
+                val id = submissionCursor.getLong(submissionCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_ID))
+                val submissionId = submissionCursor.getString(submissionCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_SUBMISSION_ID))
+                val assignmentId = submissionCursor.getString(submissionCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_ASSIGNMENT_ID))
+                val classroomId = submissionCursor.getString(submissionCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_CLASSROOM_ID))
+                val uid = submissionCursor.getString(submissionCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_UID))
+                val submittedAt = submissionCursor.getString(submissionCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_SUBMITTED_AT)) ?: ""
+                val submissionImagePath = submissionCursor.getString(submissionCursor.getColumnIndexOrThrow(DatabaseHelper.COLUMN_SUBMISSION_IMAGE_PATH))
+
+                val submissionData = mapOf(
+                    "uid" to uid,
+                    "assignment_id" to assignmentId,
+                    "classroom_id" to classroomId,
+                    "submitted_at" to submittedAt
+                )
+
+                var firebaseSuccess = false
+                try {
+                    database.getReference("Submissions").child(classroomId).child(uid).child(assignmentId).setValue(submissionData).await()
+                    firebaseSuccess = true
+                    Log.d(TAG, "Firebase synced successfully for submission $submissionId")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Firebase sync error for submission $submissionId: ${e.message}")
+                    allSyncedSuccessfully = false
+                }
+
+                var imageSuccess = true
+                if (submissionImagePath != null) {
+                    val file = File(submissionImagePath)
+                    if (file.exists()) {
+                        try {
+                            val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+                            val stream = java.io.ByteArrayOutputStream()
+                            bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                            val byteArray = stream.toByteArray()
+
+                            val imagePart = MultipartBody.Part.createFormData(
+                                "image",
+                                "${submissionId}_SUBMISSION_IMAGE.png",
+                                RequestBody.create("image/png".toMediaType(), byteArray)
+                            )
+                            val submissionIdPart = RequestBody.create("text/plain".toMediaType(), submissionId)
+
+                            val response = apiService.uploadSubmissionImage(submissionIdPart, imagePart).execute()
+                            if (response.isSuccessful && response.body()?.success == true) {
+                                Log.d(TAG, "Synced submission image for submission $submissionId: ${response.body()?.image_url}")
+                                response.body()?.image_url?.let { url ->
+                                    try {
+                                        val bitmapFromServer = BitmapFactory.decodeStream(java.net.URL(url).openStream())
+                                        val fileName = "${submissionId}_submission.png"
+                                        val newFile = File(applicationContext.filesDir, fileName)
+                                        FileOutputStream(newFile).use { out ->
+                                            bitmapFromServer.compress(Bitmap.CompressFormat.PNG, 100, out)
+                                        }
+                                        Log.d(TAG, "Saved synced submission image locally at: ${newFile.absolutePath}")
+                                        databaseHelper.insertSubmission(
+                                            submissionId, assignmentId, classroomId, uid, submittedAt, newFile.absolutePath
+                                        )
+                                        databaseHelper.deleteSubmissionUpdate(submissionId)
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Error saving synced submission image locally: ${e.message}")
+                                        allSyncedSuccessfully = false
+                                        imageSuccess = false
+                                    }
+                                }
+                            } else {
+                                Log.e(TAG, "Submission image sync failed for submission $submissionId: ${response.code()} ${response.body()?.error ?: response.message()}")
+                                allSyncedSuccessfully = false
+                                imageSuccess = false
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error syncing submission image for submission $submissionId: ${e.message}")
+                            allSyncedSuccessfully = false
+                            imageSuccess = false
+                        }
+                    } else {
+                        Log.w(TAG, "Submission image file does not exist at path: $submissionImagePath")
+                        allSyncedSuccessfully = false
+                        imageSuccess = false
+                    }
+                }
+
+                if (firebaseSuccess && imageSuccess) {
+                    try {
+                        submissionDb.delete(
+                            DatabaseHelper.TABLE_SUBMISSION_UPDATES,
+                            "${DatabaseHelper.COLUMN_ID} = ?",
+                            arrayOf(id.toString())
+                        )
+                        Log.d(TAG, "Deleted queued submission update for id $id")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error deleting queued submission update for id $id: ${e.message}")
+                        allSyncedSuccessfully = false
+                    }
+                }
+            }
+            submissionCursor.close()
+            submissionDb.close()
+
+
+
+
             if (allSyncedSuccessfully) {
                 Log.d(TAG, "All updates synced successfully")
                 Result.success()
