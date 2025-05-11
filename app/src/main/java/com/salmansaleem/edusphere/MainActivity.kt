@@ -10,6 +10,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.messaging.FirebaseMessaging
 
 class MainActivity : AppCompatActivity() {
 
@@ -51,5 +53,21 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
             finish()
         }, 2500)
+
+
+        // Update FCM token
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                val token = task.result
+                val userId = FirebaseAuth.getInstance().currentUser?.uid
+                if (userId != null) {
+                    FirebaseDatabase.getInstance().reference
+                        .child("Users")
+                        .child(userId)
+                        .child("fcmToken")
+                        .setValue(token)
+                }
+            }
+        }
     }
 }

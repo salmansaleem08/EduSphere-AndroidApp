@@ -19,6 +19,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
+import android.util.Base64
 import com.squareup.picasso.Picasso
 import com.squareup.picasso.Target
 import retrofit2.Call
@@ -28,7 +29,24 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import android.view.View
-
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import com.google.firebase.database.ktx.getValue
+import kotlinx.coroutines.tasks.await
+import org.json.JSONObject
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.InputStream
+import java.io.ByteArrayOutputStream
+import java.security.KeyFactory
+import java.security.spec.PKCS8EncodedKeySpec
+import io.jsonwebtoken.Jwts
+import io.jsonwebtoken.SignatureAlgorithm
 
 
 class ClassPage : AppCompatActivity() {
@@ -44,6 +62,9 @@ class ClassPage : AppCompatActivity() {
     private val TAG = "ClassPage"
     private var isTeacher = false
     private lateinit var apiService: ApiService
+    private lateinit var titleTextView: TextView
+
+    private val client = OkHttpClient()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,7 +95,7 @@ class ClassPage : AppCompatActivity() {
         uid = auth.currentUser?.uid ?: ""
 
         // Initialize UI
-        val titleTextView = findViewById<TextView>(R.id.tv_title)
+        titleTextView = findViewById<TextView>(R.id.tv_title)
         val announceEditText = findViewById<EditText>(R.id.et_announce)
         val sendButton = findViewById<ImageView>(R.id.iv_send)
         val backButton = findViewById<ImageView>(R.id.iv_back)
@@ -167,7 +188,7 @@ class ClassPage : AppCompatActivity() {
         sendButton.setOnClickListener {
             val text = announceEditText.text.toString().trim()
             if (text.isNotEmpty()) {
-                postAnnouncement(text)
+                postAnnouncement()
                 announceEditText.text.clear()
             } else {
                 Toast.makeText(this, "Please enter an announcement", Toast.LENGTH_SHORT).show()
@@ -268,45 +289,77 @@ class ClassPage : AppCompatActivity() {
     }
 
 
-    private fun postAnnouncement(text: String) {
-        val announcementId = UUID.randomUUID().toString()
-        val timestamp = SimpleDateFormat("hh:mm a · dd MMM yy", Locale.getDefault()).format(Date())
-        val profileImagePath = databaseHelper.getUserProfile(uid)?.get("profile_image_path")
-        if (isOnline()) {
-            val announcementData = mapOf(
-                "uid" to uid,
-                "name" to userName,
-                "text" to text,
-                "timestamp" to timestamp
-            )
-            database.child(classroomId).child(announcementId).setValue(announcementData)
-                .addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        databaseHelper.insertAnnouncement(announcementId, classroomId, uid, userName, text, timestamp)
-                        val announcement = Announcement(announcementId, classroomId, uid, userName, text, timestamp, profileImagePath)
-                        announcements.add(announcement)
-                        announcements.sortByDescending { it.timestamp }
-                        announcementAdapter.notifyDataSetChanged()
-                        Toast.makeText(this, "Announcement posted", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Log.e(TAG, "Firebase announcement error: ${task.exception?.message}")
-                        databaseHelper.queueAnnouncementUpdate(announcementId, classroomId, uid, userName, text, timestamp)
-                        databaseHelper.insertAnnouncement(announcementId, classroomId, uid, userName, text, timestamp)
-                        val announcement = Announcement(announcementId, classroomId, uid, userName, text, timestamp, profileImagePath)
-                        announcements.add(announcement)
-                        announcements.sortByDescending { it.timestamp }
-                        announcementAdapter.notifyDataSetChanged()
-                        Toast.makeText(this, "Announcement saved locally, will sync when online", Toast.LENGTH_SHORT).show()
-                    }
+    private fun postAnnouncement() {
+        val announceEditText = findViewById<EditText>(R.id.et_announce)
+        val announcementText = announceEditText.text.toString().trim()
+        if (announcementText.isNotEmpty()) {
+            val announcementId = UUID.randomUUID().toString()
+            val classroomId = this.classroomId
+            val userId = FirebaseAuth.getInstance().currentUser?.uid
+            val userName = this.userName
+            val timestamp = SimpleDateFormat("hh:mm a · dd MMM yy", Locale.getDefault()).format(Date())
+            val profileImagePath = userId?.let { databaseHelper.getUserProfile(it)?.get("profile_image_path") }
+
+            if (userId != null && classroomId != null) {
+                if (isOnline()) {
+                    // Online: Save to Firebase and send notifications
+                    val announcementData = mapOf(
+                        "uid" to userId,
+                        "name" to userName,
+                        "text" to announcementText,
+                        "timestamp" to timestamp
+                    )
+                    FirebaseDatabase.getInstance().reference
+                        .child("Announcements")
+                        .child(classroomId)
+                        .child(announcementId)
+                        .setValue(announcementData)
+                        .addOnSuccessListener {
+                            // Fetch className for notification
+                            FirebaseDatabase.getInstance().reference
+                                .child("Classrooms")
+                                .child(classroomId)
+                                .child("name")
+                                .get()
+                                .addOnSuccessListener { snapshot ->
+                                    val className = snapshot.getValue(String::class.java) ?: "Classroom"
+                                    CoroutineScope(Dispatchers.Main).launch {
+                                        sendAnnouncementNotification(
+                                            classroomId,
+                                            announcementId,
+                                            userName,
+                                            className,
+                                            userId, // Pass senderUid
+                                            announcementText // Pass announcementText
+                                        )
+                                    }
+                                }
+                            databaseHelper.insertAnnouncement(announcementId, classroomId, userId, userName, announcementText, timestamp)
+                            val announcement = Announcement(announcementId, classroomId, userId, userName, announcementText, timestamp, profileImagePath)
+                            announcements.add(announcement)
+                            announcements.sortByDescending { it.timestamp }
+                            announcementAdapter.notifyDataSetChanged()
+                            announceEditText.text.clear()
+                            Toast.makeText(this, "Announcement posted", Toast.LENGTH_SHORT).show()
+                        }
+                        .addOnFailureListener {
+                            Toast.makeText(this, "Failed to post announcement", Toast.LENGTH_SHORT).show()
+                        }
+                } else {
+                    // Offline: Queue for sync
+                    databaseHelper.queueAnnouncementUpdate(announcementId, classroomId, userId, userName, announcementText, timestamp)
+                    databaseHelper.insertAnnouncement(announcementId, classroomId, userId, userName, announcementText, timestamp)
+                    val announcement = Announcement(announcementId, classroomId, userId, userName, announcementText, timestamp, profileImagePath)
+                    announcements.add(announcement)
+                    announcements.sortByDescending { it.timestamp }
+                    announcementAdapter.notifyDataSetChanged()
+                    val workRequest = OneTimeWorkRequestBuilder<SyncWorker>().build()
+                    WorkManager.getInstance(this).enqueue(workRequest)
+                    Toast.makeText(this, "Announcement saved locally, will sync when online", Toast.LENGTH_SHORT).show()
                 }
+            }
         } else {
-            databaseHelper.queueAnnouncementUpdate(announcementId, classroomId, uid, userName, text, timestamp)
-            databaseHelper.insertAnnouncement(announcementId, classroomId, uid, userName, text, timestamp)
-            val announcement = Announcement(announcementId, classroomId, uid, userName, text, timestamp, profileImagePath)
-            announcements.add(announcement)
-            announcements.sortByDescending { it.timestamp }
-            announcementAdapter.notifyDataSetChanged()
-            Toast.makeText(this, "Announcement saved locally, will sync when online", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Announcement cannot be empty", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -469,4 +522,180 @@ class ClassPage : AppCompatActivity() {
         taskUpload.visibility = if (isTeacher) View.VISIBLE else View.GONE
         taskList.visibility = if (!isTeacher) View.VISIBLE else View.GONE
     }
+
+
+
+
+
+
+
+
+
+
+
+    private suspend fun sendAnnouncementNotification(
+        classroomId: String,
+        announcementId: String,
+        announcerName: String,
+        className: String,
+        senderUid: String, // Add sender's UID to exclude them
+        announcementText: String // Add announcement text for notification body
+    ) {
+        val membersRef = FirebaseDatabase.getInstance().getReference("Classes").child(classroomId).child("members")
+        val snapshot = membersRef.get().await()
+        val memberUids = snapshot.children.mapNotNull { it.key }.filter { it != senderUid } // Exclude sender
+        Log.d("FCM", "Members for classroom $classroomId (excluding sender $senderUid): $memberUids")
+        for (uid in memberUids) {
+            val tokenSnapshot = FirebaseDatabase.getInstance().getReference("Users").child(uid).child("fcmToken").get().await()
+            val token = tokenSnapshot.getValue(String::class.java)
+            Log.d("FCM", "Token for UID $uid: $token")
+            if (token != null) {
+                val title = "$announcerName announced in $className"
+                val body = if (announcementText.length > 100) "${announcementText.take(100)}..." else announcementText
+                sendNotificationToToken(token, title, body, classroomId, announcementId, uid)
+            }
+        }
+    }
+
+    private fun sendNotificationToToken(
+        token: String,
+        title: String,
+        body: String,
+        classroomId: String,
+        announcementId: String,
+        uid: String
+    ) {
+        Thread {
+            try {
+                val accessToken = getAccessToken()
+                if (accessToken.isEmpty()) {
+                    Log.e("FCM", "Failed to obtain access token")
+                    return@Thread
+                }
+                val projectId = "edusphere-e2107" // Replace with your Firebase project ID
+                val url = "https://fcm.googleapis.com/v1/projects/$projectId/messages:send"
+                val json = JSONObject().apply {
+                    put("message", JSONObject().apply {
+                        put("token", token)
+                        put("notification", JSONObject().apply {
+                            put("title", title)
+                            put("body", body)
+                        })
+                        put("data", JSONObject().apply {
+                            put("type", "announcement")
+                            put("classroomId", classroomId)
+                            put("announcementId", announcementId)
+                        })
+                        put("android", JSONObject().apply {
+                            put("priority", "high")
+                        })
+                    })
+                }.toString()
+                Log.d("FCM", "Sending JSON to $token: $json")
+
+                val request = Request.Builder()
+                    .url(url)
+                    .post(json.toRequestBody("application/json; charset=utf-8".toMediaType()))
+                    .header("Authorization", "Bearer $accessToken")
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        Log.d("FCM", "Notification sent successfully to $token")
+                    } else {
+                        val errorBody = response.body?.string()
+                        Log.e("FCM", "FCM v1 failed: ${response.code} - $errorBody")
+                        if (response.code == 404) {
+                            Log.e("FCM", "Invalid token $token, removing for UID $uid")
+                            FirebaseDatabase.getInstance().reference
+                                .child("Users")
+                                .child(uid)
+                                .child("fcmToken")
+                                .removeValue()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("FCM", "Error sending FCM v1: ${e.message}", e)
+            }
+        }.start()
+    }
+
+    private fun getAccessToken(): String {
+        try {
+            val inputStream: InputStream = resources.openRawResource(R.raw.service_account)
+           // val inputStream: InputStream = resources.openRawResource(com.google.firebase.database.R.raw.service_account)
+            val jsonString = inputStream.bufferedReader().use { it.readText() }
+            val json = JSONObject(jsonString)
+            val clientEmail = json.getString("client_email")
+            val privateKeyPem = json.getString("private_key")
+                .replace("-----BEGIN PRIVATE KEY-----", "")
+                .replace("-----END PRIVATE KEY-----", "")
+                .replace("\\n", "")
+                .trim()
+            val tokenUri = json.getString("token_uri")
+
+            Log.d("FCM", "Raw private key (first 50 chars): ${privateKeyPem.take(50)}...")
+
+            // Decode using android.util.Base64
+            val keyBytes = try {
+                Base64.decode(privateKeyPem, Base64.DEFAULT) // Use DEFAULT flag
+            } catch (e: IllegalArgumentException) {
+                Log.e("FCM", "Base64 decode failed: ${e.message}", e)
+                return ""
+            }
+            Log.d("FCM", "Decoded key length: ${keyBytes.size} bytes")
+
+            val keySpec = PKCS8EncodedKeySpec(keyBytes)
+            val keyFactory = KeyFactory.getInstance("RSA")
+            val privateKey = try {
+                keyFactory.generatePrivate(keySpec)
+            } catch (e: Exception) {
+                Log.e("FCM", "Private key parsing failed: ${e.message}", e)
+                return ""
+            }
+
+            val now = System.currentTimeMillis() / 1000
+            val jwt = Jwts.builder()
+                .setHeaderParam("alg", "RS256")
+                .setHeaderParam("typ", "JWT")
+                .setIssuer(clientEmail)
+                .setAudience(tokenUri)
+                .setIssuedAt(java.util.Date(now * 1000))
+                .setExpiration(java.util.Date((now + 3600) * 1000))
+                .claim("scope", "https://www.googleapis.com/auth/firebase.messaging")
+                .signWith(privateKey, SignatureAlgorithm.RS256)
+                .compact()
+            Log.d("FCM", "Generated JWT: $jwt")
+
+            val requestBody = "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=$jwt"
+                .toRequestBody("application/x-www-form-urlencoded".toMediaType())
+            val request = Request.Builder()
+                .url(tokenUri)
+                .post(requestBody)
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string() ?: "{}"
+                if (response.isSuccessful) {
+                    val responseJson = JSONObject(responseBody)
+                    val accessToken = responseJson.getString("access_token")
+                    Log.d("FCM", "Access token obtained: $accessToken")
+                    return accessToken
+                } else {
+                    Log.e("FCM", "Token request failed: ${response.code} - $responseBody")
+                    return ""
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("FCM", "Error getting access token: ${e.message}", e)
+            return ""
+        }
+    }
+
+
+
+
+
 }

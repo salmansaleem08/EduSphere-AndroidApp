@@ -3,6 +3,7 @@ package com.salmansaleem.edusphere
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.Base64
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -19,11 +20,27 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.TimeUnit
+import com.google.firebase.database.ktx.getValue
+import io.jsonwebtoken.Jwts
+import io.jsonwebtoken.SignatureAlgorithm
+import kotlinx.coroutines.tasks.await
+import org.json.JSONObject
+import okhttp3.MediaType.Companion.toMediaType
+//import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.InputStream
+import java.security.KeyFactory
+import java.security.spec.PKCS8EncodedKeySpec
+
 
 class SyncWorker(appContext: Context, params: WorkerParameters) : CoroutineWorker(appContext, params) {
     private val TAG = "SyncWorker"
     private val databaseHelper = DatabaseHelper(appContext)
     private val database = FirebaseDatabase.getInstance()
+
+    private val client = OkHttpClient()
+
 
     private val apiService: ApiService by lazy {
         val client = OkHttpClient.Builder()
@@ -309,6 +326,10 @@ class SyncWorker(appContext: Context, params: WorkerParameters) : CoroutineWorke
                     database.getReference("Announcements").child(classroomId).child(announcementId).setValue(announcementData).await()
                     firebaseSuccess = true
                     Log.d(TAG, "Firebase synced successfully for announcement $announcementId")
+                    val classroomSnapshot = database.getReference("Classrooms").child(classroomId).get().await()
+                    val className = classroomSnapshot.child("name").getValue(String::class.java) ?: "Classroom"
+                    val announcerName = name
+                    sendAnnouncementNotification(classroomId, announcementId, announcerName, className, uid, text) // Added line
                 } catch (e: Exception) {
                     Log.e(TAG, "Firebase sync error for announcement $announcementId: ${e.message}")
                     allSyncedSuccessfully = false
@@ -430,6 +451,10 @@ class SyncWorker(appContext: Context, params: WorkerParameters) : CoroutineWorke
                     database.getReference("Assignments").child(classroomId).child(assignmentId).setValue(assignmentData).await()
                     firebaseSuccess = true
                     Log.d(TAG, "Firebase synced successfully for assignment $assignmentId")
+                    databaseHelper.getUserProfile(uid)?.let { user ->
+                        val announcerName = user["name"] ?: "User"
+                        sendAssignmentNotification(classroomId, assignmentId, announcerName, name, uid)
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "Firebase sync error for assignment $assignmentId: ${e.message}")
                     allSyncedSuccessfully = false
@@ -634,4 +659,197 @@ class SyncWorker(appContext: Context, params: WorkerParameters) : CoroutineWorke
             Result.retry()
         }
     }
+
+
+
+    private suspend fun sendAnnouncementNotification(
+        classroomId: String,
+        announcementId: String,
+        announcerName: String,
+        className: String,
+        senderUid: String, // Add sender's UID to exclude them
+        announcementText: String // Add announcement text for notification body
+    ) {
+        val membersRef = FirebaseDatabase.getInstance().getReference("Classes").child(classroomId).child("members")
+        val snapshot = membersRef.get().await()
+        val memberUids = snapshot.children.mapNotNull { it.key }.filter { it != senderUid } // Exclude sender
+        Log.d("FCM", "Members for classroom $classroomId (excluding sender $senderUid): $memberUids")
+        for (uid in memberUids) {
+            val tokenSnapshot = FirebaseDatabase.getInstance().getReference("Users").child(uid).child("fcmToken").get().await()
+            val token = tokenSnapshot.getValue(String::class.java)
+            Log.d("FCM", "Token for UID $uid: $token")
+            if (token != null) {
+                val title = "$announcerName announced in $className"
+                val body = if (announcementText.length > 100) "${announcementText.take(100)}..." else announcementText
+                sendNotificationToToken(token, title, body, classroomId, announcementId, uid)
+            }
+        }
+    }
+
+
+    private fun sendNotificationToToken(
+        token: String,
+        title: String,
+        body: String,
+        classroomId: String,
+        announcementId: String,
+        uid: String
+    ) {
+        Thread {
+            try {
+                val accessToken = getAccessToken()
+                if (accessToken.isEmpty()) {
+                    Log.e("FCM", "Failed to obtain access token")
+                    return@Thread
+                }
+                val projectId = "edusphere-e2107" // Replace with your Firebase project ID
+                val url = "https://fcm.googleapis.com/v1/projects/$projectId/messages:send"
+                val json = JSONObject().apply {
+                    put("message", JSONObject().apply {
+                        put("token", token)
+                        put("notification", JSONObject().apply {
+                            put("title", title)
+                            put("body", body)
+                        })
+                        put("data", JSONObject().apply {
+                            put("type", "announcement")
+                            put("classroomId", classroomId)
+                            put("announcementId", announcementId)
+                        })
+                        put("android", JSONObject().apply {
+                            put("priority", "high")
+                        })
+                    })
+                }.toString()
+                Log.d("FCM", "Sending JSON to $token: $json")
+
+                val request = Request.Builder()
+                    .url(url)
+                    .post(json.toRequestBody("application/json; charset=utf-8".toMediaType()))
+                    .header("Authorization", "Bearer $accessToken")
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        Log.d("FCM", "Notification sent successfully to $token")
+                    } else {
+                        val errorBody = response.body?.string()
+                        Log.e("FCM", "FCM v1 failed: ${response.code} - $errorBody")
+                        if (response.code == 404) {
+                            Log.e("FCM", "Invalid token $token, removing for UID $uid")
+                            FirebaseDatabase.getInstance().reference
+                                .child("Users")
+                                .child(uid)
+                                .child("fcmToken")
+                                .removeValue()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("FCM", "Error sending FCM v1: ${e.message}", e)
+            }
+        }.start()
+    }
+
+
+    private fun getAccessToken(): String {
+        try {
+            val inputStream: InputStream = applicationContext.resources.openRawResource(R.raw.service_account)
+            //val inputStream: InputStream = resources.openRawResource(R.raw.service_account)
+            // val inputStream: InputStream = resources.openRawResource(com.google.firebase.database.R.raw.service_account)
+            val jsonString = inputStream.bufferedReader().use { it.readText() }
+            val json = JSONObject(jsonString)
+            val clientEmail = json.getString("client_email")
+            val privateKeyPem = json.getString("private_key")
+                .replace("-----BEGIN PRIVATE KEY-----", "")
+                .replace("-----END PRIVATE KEY-----", "")
+                .replace("\\n", "")
+                .trim()
+            val tokenUri = json.getString("token_uri")
+
+            Log.d("FCM", "Raw private key (first 50 chars): ${privateKeyPem.take(50)}...")
+
+            // Decode using android.util.Base64
+            val keyBytes = try {
+                Base64.decode(privateKeyPem, Base64.DEFAULT) // Use DEFAULT flag
+            } catch (e: IllegalArgumentException) {
+                Log.e("FCM", "Base64 decode failed: ${e.message}", e)
+                return ""
+            }
+            Log.d("FCM", "Decoded key length: ${keyBytes.size} bytes")
+
+            val keySpec = PKCS8EncodedKeySpec(keyBytes)
+            val keyFactory = KeyFactory.getInstance("RSA")
+            val privateKey = try {
+                keyFactory.generatePrivate(keySpec)
+            } catch (e: Exception) {
+                Log.e("FCM", "Private key parsing failed: ${e.message}", e)
+                return ""
+            }
+
+            val now = System.currentTimeMillis() / 1000
+            val jwt = Jwts.builder()
+                .setHeaderParam("alg", "RS256")
+                .setHeaderParam("typ", "JWT")
+                .setIssuer(clientEmail)
+                .setAudience(tokenUri)
+                .setIssuedAt(java.util.Date(now * 1000))
+                .setExpiration(java.util.Date((now + 3600) * 1000))
+                .claim("scope", "https://www.googleapis.com/auth/firebase.messaging")
+                .signWith(privateKey, SignatureAlgorithm.RS256)
+                .compact()
+            Log.d("FCM", "Generated JWT: $jwt")
+
+            val requestBody = "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=$jwt"
+                .toRequestBody("application/x-www-form-urlencoded".toMediaType())
+            val request = Request.Builder()
+                .url(tokenUri)
+                .post(requestBody)
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string() ?: "{}"
+                if (response.isSuccessful) {
+                    val responseJson = JSONObject(responseBody)
+                    val accessToken = responseJson.getString("access_token")
+                    Log.d("FCM", "Access token obtained: $accessToken")
+                    return accessToken
+                } else {
+                    Log.e("FCM", "Token request failed: ${response.code} - $responseBody")
+                    return ""
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("FCM", "Error getting access token: ${e.message}", e)
+            return ""
+        }
+    }
+
+
+
+    private suspend fun sendAssignmentNotification(
+        classroomId: String,
+        assignmentId: String,
+        announcerName: String,
+        assignmentName: String,
+        senderUid: String
+    ) {
+        val membersRef = FirebaseDatabase.getInstance().getReference("Classes").child(classroomId).child("members")
+        val snapshot = membersRef.get().await()
+        val memberUids = snapshot.children.mapNotNull { it.key }.filter { it != senderUid }
+        Log.d("FCM", "Members for classroom $classroomId (excluding sender $senderUid): $memberUids")
+        for (uid in memberUids) {
+            val tokenSnapshot = FirebaseDatabase.getInstance().getReference("Users").child(uid).child("fcmToken").get().await()
+            val token = tokenSnapshot.getValue(String::class.java)
+            Log.d("FCM", "Token for UID $uid: $token")
+            if (token != null) {
+                val title = "$announcerName created an assignment"
+                val body = "$announcerName created an assignment $assignmentName"
+                sendNotificationToToken(token, title, body, classroomId, assignmentId, uid)
+            }
+        }
+    }
+
+
 }

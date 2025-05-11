@@ -56,6 +56,10 @@ dependencies {
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-database:21.0.0")
 
+
+    implementation("com.google.firebase:firebase-functions:20.4.0")
+    implementation("com.google.firebase:firebase-messaging:23.4.1")
+
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation ("de.hdodenhof:circleimageview:3.1.0")
     implementation ("androidx.work:work-runtime-ktx:2.8.1")
@@ -69,6 +73,10 @@ dependencies {
     implementation(libs.androidx.exifinterface)
 
     implementation ("com.squareup.picasso:picasso:2.71828")
+
+
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("io.jsonwebtoken:jjwt:0.12.6")
 
 }
 
